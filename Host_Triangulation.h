@@ -277,7 +277,6 @@ bool HostTriangulation::delonizeEdge(int he_index) {
 //returns true if there was some flipping
 bool HostTriangulation::delonizeTriangle(int t_index) {
     Triangle t = m_t[t_index];
-    int v[3];
     int he[3];
     he[0] = t.he;
     he[1] = m_he[he[0]].next;

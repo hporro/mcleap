@@ -42,16 +42,17 @@ __device__ __host__ inline T pow2(T& a) {
     return a * a;
 }
 
+// FOR SOME REASON THIS HAS TO BE DOUBLE PRESICION, DO NOT TOUCH (IM TALKING TO YOU HEINICH)
 __device__ __host__ inline bool inCircle(glm::vec2& a, glm::vec2& b, glm::vec2& c, glm::vec2& d) {
-    float a00 = a.x - d.x;
-    float a01 = a.y - d.y;
-    float a02 = pow2(a00) + pow2(a01);
-    float a10 = b.x - d.x;
-    float a11 = b.y - d.y;
-    float a12 = pow2(a10) + pow2(a11);
-    float a20 = c.x - d.x;
-    float a21 = c.y - d.y;
-    float a22 = pow2(a20) + pow2(a21);
+    double a00 = a.x - d.x;
+    double a01 = a.y - d.y;
+    double a02 = pow2(a00) + pow2(a01);
+    double a10 = b.x - d.x;
+    double a11 = b.y - d.y;
+    double a12 = pow2(a10) + pow2(a11);
+    double a20 = c.x - d.x;
+    double a21 = c.y - d.y;
+    double a22 = pow2(a20) + pow2(a21);
 
     return (a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20)) > EPS;
 }
