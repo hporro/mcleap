@@ -23,9 +23,9 @@ struct f3to1_info;
 
 // -------------------------------------------
 // basic flips
-__device__ __host__ inline bool       f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int he_index);
-__device__ __host__ inline bool       f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info& finfo, int t_index);
-__device__ __host__ inline bool       f2to4(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int he_index);
+__device__ __host__ inline void       f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int he_index);
+__device__ __host__ inline void       f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info& finfo, int t_index);
+__device__ __host__ inline void       f2to4(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int he_index);
 __device__ __host__ inline f3to1_info f3to1(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int t_index);
 
 
@@ -60,7 +60,7 @@ struct f3to1_info {
 // -------------------------------------------
 // flipping
 
-__device__ __host__ inline bool f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int he_index) {
+__device__ __host__ inline void f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int he_index) {
     int v[4];
     int he[6];
     int t[2];
@@ -118,11 +118,9 @@ __device__ __host__ inline bool f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     m_he[he[1]].op = v[0];
     m_he[he[3]].op = v[3];
     m_he[he[4]].op = v[2];
-
-    return true;
 }
 
-__device__ __host__ inline bool f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info& finfo, int t_index) {
+__device__ __host__ inline void f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info& finfo, int t_index) {
     int he[9];
     int t[3];
     int v[4];
@@ -206,10 +204,8 @@ __device__ __host__ inline bool f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     m_he[he[2]].op = v[3];
     m_he[he[6]].op = v[2];
     m_he[he[8]].op = v[0];
-
-    return true;
 }
 
-__device__ __host__ inline bool f2to4(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int he_index) { return false; }
+__device__ __host__ inline void f2to4(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int he_index) {}
 __device__ __host__ inline f3to1_info f3to1(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int t_index) { return {}; }
 

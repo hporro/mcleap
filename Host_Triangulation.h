@@ -34,7 +34,7 @@ struct HostTriangulation {
     // -------------------------------------------
     // incremental construction
     __device__ __host__ int findContainingTriangleIndexCheckingAll(glm::vec2 p);
-    __device__ __host__ int findContainingTriangleIndexWalking(glm::vec2 p, int t_index_guess, int t_index_prev);
+    __device__ __host__ int findContainingTriangleIndexWalking(glm::vec2& p, int t_index_guess, int t_index_prev);
     bool addPoint(glm::vec2 p, int t_index); // inserts with a 3to1 flip a point in the respective triangle
     bool addPoint(glm::vec2 p); // inserts with a 3to1 flip a point in the respective triangle
 
@@ -145,9 +145,9 @@ int HostTriangulation::findContainingTriangleIndexCheckingAll(glm::vec2 p) {
     return -1;
 }
 
-int HostTriangulation::findContainingTriangleIndexWalking(glm::vec2 p, int t_index_guess, int t_index_prev) {
+int HostTriangulation::findContainingTriangleIndexWalking(glm::vec2& p, int t_index_guess, int t_index_prev) {
 
-    while (!isInside(p, t_index_guess)) {
+    keep_walking: {
         Triangle t = m_t[t_index_guess];
         int v[3];
 
@@ -167,17 +167,16 @@ int HostTriangulation::findContainingTriangleIndexWalking(glm::vec2 p, int t_ind
 
         glm::vec2 centroid = (pe[0] + pe[1] + pe[2]) / 3.f;
 
+#pragma unroll(3)
         for (int i = 0; i < 3; i++) {
-            glm::vec2 s = pe[i];
-            glm::vec2 r = pe[(i+1)%3];
 
-            //checking if s-r intersects centroid-p
-            if ((isToTheLeft(centroid, p, s) != isToTheLeft(centroid, p, r)) && (isToTheLeft(s, r, centroid) != isToTheLeft(s, r, p))) {
-                // CARE: in the if below, it has to be the twin
-                if (m_he[he[i] ^ 1].t != t_index_prev) {
+            // CARE: in the if below, it has to be the twin
+            if (m_he[he[i] ^ 1].t != t_index_prev) {
+                //checking if s-r intersects centroid-p
+                if ((isToTheLeft(centroid, p, pe[i]) != isToTheLeft(centroid, p, pe[(i + 1) % 3])) && (isToTheLeft(pe[i], pe[(i + 1) % 3], centroid) != isToTheLeft(pe[i], pe[(i + 1) % 3], p))) {
                     t_index_prev = t_index_guess;
                     t_index_guess = m_he[he[i] ^ 1].t;
-                    break;
+                    goto keep_walking;
                 }
             }
         }

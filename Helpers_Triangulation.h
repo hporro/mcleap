@@ -3,7 +3,6 @@
 #include "Common_Triangulation.h"
 #include <glm/glm.hpp>
 
-__device__ __host__ inline float cross(glm::vec2& a, glm::vec2& b);
 __device__ __host__ inline bool operator==(glm::vec2& a, glm::vec2& b);
 __device__ __host__ inline bool isToTheLeft(glm::vec2& a, glm::vec2& b, glm::vec2& c);
 template<class T>
@@ -27,10 +26,6 @@ __device__ __host__ bool isInvertedEdge(Triangle* m_t, HalfEdge* m_he, glm::vec2
 // functions
 // -------------------------------------------
 
-__device__ __host__ inline float cross(glm::vec2& a, glm::vec2& b) {
-    return (a.x * b.y) - (a.y * b.x);
-}
-
 __device__ __host__ inline bool operator==(glm::vec2& a, glm::vec2& b) {
     return (abs(a.x - b.x) < EPS && abs(a.y - b.y) < EPS);
 }
@@ -53,7 +48,7 @@ __device__ __host__ inline void __swap(T* a, T* b) {
     *b = temp;
 }
 
-// FOR SOME REASON THIS HAS TO BE DOUBLE PRESICION, DO NOT TOUCH (IM TALKING TO YOU HEINICH)
+// FOR SOME REASON (precision, duh) THIS HAS TO BE DOUBLE PRESICION, DO NOT TOUCH (IM TALKING TO YOU HEINICH)
 __device__ __host__ inline bool inCircle(glm::vec2& a, glm::vec2& b, glm::vec2& c, glm::vec2& d) {
     double a00 = a.x - d.x;
     double a01 = a.y - d.y;
@@ -86,6 +81,7 @@ __device__ __host__ bool isInside(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_po
     v[1] = m_he[t.he^1].v;
     v[2] = m_he[t.he].op;
 
+#pragma unroll(3)
     for (int i = 0; i < 3; i++) {
         if (!isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
     }
@@ -100,6 +96,7 @@ __device__ __host__ bool isInsideInverted(Triangle* m_t, HalfEdge* m_he, glm::ve
     v[1] = m_he[t.he ^ 1].v;
     v[2] = m_he[t.he].op;
 
+#pragma unroll(3)
     for (int i = 0; i < 3; i++) {
         if (isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
     }
