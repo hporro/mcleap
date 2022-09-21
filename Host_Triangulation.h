@@ -26,7 +26,7 @@ struct HostTriangulation {
     std::vector<Vertex> m_v;
     std::vector<HalfEdge> m_he;
     std::vector<Triangle> m_t;
-    
+
     // -------------------------------------------
     // constructors
     HostTriangulation();
@@ -34,8 +34,10 @@ struct HostTriangulation {
     // -------------------------------------------
     // incremental construction
     __device__ __host__ int findContainingTriangleIndexCheckingAll(glm::vec2 p);
-    __device__ __host__ int findContainingTriangleIndexWalking(glm::vec2 p, int t_index);
+    __device__ __host__ int findContainingTriangleIndexWalking(glm::vec2 p, int t_index_guess, int t_index_prev);
+    bool addPoint(glm::vec2 p, int t_index); // inserts with a 3to1 flip a point in the respective triangle
     bool addPoint(glm::vec2 p); // inserts with a 3to1 flip a point in the respective triangle
+
     bool addDelaunayPoint(glm::vec2 p); // does addPoint, and then delonizes the part of the triangulation that breaks the delaunay condition inserting said point
 
     // -------------------------------------------
@@ -76,7 +78,7 @@ struct HostTriangulation {
     // -------------------------------------------
     // Experimental operations
     __device__ __host__ bool swapVertices(int v0_index, int v1_index);
-    
+
 };
 
 
@@ -128,31 +130,66 @@ int HostTriangulation::findContainingTriangleIndexCheckingAll(glm::vec2 p) {
     return -1;
 }
 
-int HostTriangulation::findContainingTriangleIndexWalking(glm::vec2 p, int t_index) {
-    if (isInside(m_t.data(), m_he.data(), m_pos.data(), p, t_index))return t_index;
-    
-    int he[3];
-    he[0] = m_t[t_index].he;
-    he[1] = m_he[he[0]].next;
-    he[2] = m_he[he[1]].next;
+int HostTriangulation::findContainingTriangleIndexWalking(glm::vec2 p, int t_index_guess, int t_index_prev) {
 
-    glm::vec2 p0 = m_pos[m_he[he[0]].v];
-    glm::vec2 p1 = m_pos[m_he[he[1]].v];
-    glm::vec2 p2 = m_pos[m_he[he[2]].v];
+    while (!isInside(m_t.data(), m_he.data(), m_pos.data(), p, t_index_guess)) {
+        int he[3];
+        he[0] = m_t[t_index_guess].he;
+        he[1] = m_he[he[0]].next;
+        he[2] = m_he[he[1]].next;
 
-    glm::vec2 centroid = (p0+p1+p2)/3.f;
+        glm::vec2 p0 = m_pos[m_he[he[0]].v];
+        glm::vec2 p1 = m_pos[m_he[he[1]].v];
+        glm::vec2 p2 = m_pos[m_he[he[2]].v];
 
-    for (int i = 0; i < 3; i++) {
-        glm::vec2 s = m_pos[m_he[he[i]].v];
-        glm::vec2 r = m_pos[m_he[m_he[he[i]].next].v];
+        glm::vec2 centroid = (p0 + p1 + p2) / 3.f;
 
-        //checking if s-r intersects centroid-p
-        if((isToTheLeft(p,centroid,s) != isToTheLeft(p,centroid,r)) && (isToTheLeft(s,r,centroid) != isToTheLeft(s,r,p))) {
-            return findContainingTriangleIndexWalking(p, m_he[he[i]].t);
+        for (int i = 0; i < 3; i++) {
+            glm::vec2 s = m_pos[m_he[he[i]].v];
+            glm::vec2 r = m_pos[m_he[he[i] ^ 1].v];
+
+            //checking if s-r intersects centroid-p
+            if ((isToTheLeft(centroid, p, s) != isToTheLeft(centroid, p, r)) && (isToTheLeft(s, r, centroid) != isToTheLeft(s, r, p))) {
+                // CARE: in the if below, it has to be the twin
+                if (m_he[he[i] ^ 1].t != t_index_prev) {
+                    t_index_prev = t_index_guess;
+                    t_index_guess = m_he[he[i] ^ 1].t;
+                    break;
+                }
+            }
         }
     }
+    return t_index_guess;
+}
 
-    return -1;
+bool HostTriangulation::addPoint(glm::vec2 p, int t_index) {
+    if (t_index == -1)return false; // couldnt find the triangle for some reason
+    m_pos.push_back(p);
+    m_v.push_back(Vertex{ (int)m_pos.size() - 1 });
+
+    //allocate new memory
+    m_t.push_back(Triangle{});
+    m_t.push_back(Triangle{});
+
+    m_he.push_back(HalfEdge{});
+    m_he.push_back(HalfEdge{});
+    m_he.push_back(HalfEdge{});
+    m_he.push_back(HalfEdge{});
+    m_he.push_back(HalfEdge{});
+    m_he.push_back(HalfEdge{});
+
+    f3to1_info finfo{
+        (int)m_v.size() - 1,
+        (int)m_t.size() - 1,
+        (int)m_t.size() - 2,
+        (int)m_he.size() - 1,
+        (int)m_he.size() - 3,
+        (int)m_he.size() - 5
+    };
+
+
+    f1to3(m_t.data(), m_he.data(), m_v.data(), finfo, t_index);
+    return true;
 }
 
 bool HostTriangulation::addPoint(glm::vec2 p) {
@@ -187,7 +224,7 @@ bool HostTriangulation::addPoint(glm::vec2 p) {
 }
 
 bool HostTriangulation::addDelaunayPoint(glm::vec2 p) {
-    int t_index = findContainingTriangleIndexCheckingAll(p);
+    int t_index = findContainingTriangleIndexWalking(p, m_t.size() - 1, -1);
     if (t_index == -1)return false; // couldnt find the triangle for some reason
     m_pos.push_back(p);
     m_v.push_back(Vertex{ (int)m_pos.size() - 1 });
@@ -209,7 +246,7 @@ bool HostTriangulation::addDelaunayPoint(glm::vec2 p) {
         (int)m_t.size() - 2,
         (int)m_he.size() - 1,
         (int)m_he.size() - 3,
-        (int)m_he.size() - 5    
+        (int)m_he.size() - 5
     };
 
     f1to3(m_t.data(), m_he.data(), m_v.data(), finfo, t_index);
@@ -260,7 +297,7 @@ bool HostTriangulation::delonizeEdge(int he_index) {
         if (!isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
     }
     if (inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])) {
-        f2to2(m_t.data(), m_he.data(), m_v.data(),he_index);
+        f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
         int ihe[4];
         ihe[0] = m_he[he_index].next;
         ihe[1] = m_he[ihe[0]].next;
@@ -296,7 +333,7 @@ bool HostTriangulation::delonizeTriangle(int t_index) {
 bool HostTriangulation::delonizeVertex(int v_index) {
     int initial_he = m_v[v_index].he;
 
-    if (m_he[initial_he].t == -1)initial_he = initial_he^1;
+    if (m_he[initial_he].t == -1)initial_he = initial_he ^ 1;
     if (delonizeTriangle(m_he[initial_he].t)) { delonizeVertex(v_index); return true; }
 
     int curr_he = NEXT_OUTGOING(initial_he);
@@ -341,7 +378,7 @@ bool HostTriangulation::movePoint(int p_index, glm::vec2 d) {
 
 bool HostTriangulation::moveFlipflop(int p_index, glm::vec2 d) { return false; }
 bool HostTriangulation::moveFlipflopDelaunay(int p_index, glm::vec2 d) { return false; }
-bool HostTriangulation::moveUntangling(int p_index, glm::vec2 d) { 
+bool HostTriangulation::moveUntangling(int p_index, glm::vec2 d) {
     return false;
 }
 bool HostTriangulation::moveUntanglingDelaunay(int p_index, glm::vec2 d) { return false; }
@@ -359,46 +396,46 @@ bool HostTriangulation::untangle() {
 bool HostTriangulation::untangleEdge(int he_index) {
 
     if (isCreased(m_t.data(), m_he.data(), m_pos.data(), he_index)) {
-            int he_upright = he_index;
-            int he_inverted = he_index ^ 1;
+        int he_upright = he_index;
+        int he_inverted = he_index ^ 1;
 
-            if (!isCCW(m_t.data(), m_he.data(), m_pos.data(), m_he[he_upright].t))std::swap(he_upright, he_inverted);
+        if (!isCCW(m_t.data(), m_he.data(), m_pos.data(), m_he[he_upright].t))std::swap(he_upright, he_inverted);
 
-            glm::vec2 op_upright = m_pos[m_he[m_he[m_he[he_upright].next].next].v];
-            glm::vec2 op_inverted = m_pos[m_he[m_he[m_he[he_inverted].next].next].v];
+        glm::vec2 op_upright = m_pos[m_he[m_he[m_he[he_upright].next].next].v];
+        glm::vec2 op_inverted = m_pos[m_he[m_he[m_he[he_inverted].next].next].v];
 
-            int t_index_upright = m_he[he_upright].t;
-            int t_index_inverted = m_he[he_inverted].t;
+        int t_index_upright = m_he[he_upright].t;
+        int t_index_inverted = m_he[he_inverted].t;
 
-            // --------------------
-            // A-Step
-            // Case where either triangle has 0 area
-            // TODO: implement this
+        // --------------------
+        // A-Step
+        // Case where either triangle has 0 area
+        // TODO: implement this
 
-            // --------------------
-            // B-Step
-            // Case where the inverted triangle is inside the upright one            
-            if (isInside(m_t.data(), m_he.data(), m_pos.data(), op_inverted, t_index_upright)) {
-                f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
-                return true;
-            }
+        // --------------------
+        // B-Step
+        // Case where the inverted triangle is inside the upright one            
+        if (isInside(m_t.data(), m_he.data(), m_pos.data(), op_inverted, t_index_upright)) {
+            f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
+            return true;
+        }
 
-            // --------------------
-            // C-Step
-            // Case where the upright triangle is inside the inverted one
-            else if (isInsideInverted(m_t.data(), m_he.data(), m_pos.data(), op_upright, t_index_inverted)) {
-                f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
-                return true;
-            }
+        // --------------------
+        // C-Step
+        // Case where the upright triangle is inside the inverted one
+        else if (isInsideInverted(m_t.data(), m_he.data(), m_pos.data(), op_upright, t_index_inverted)) {
+            f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
+            return true;
+        }
 
-            // --------------------
-            // D-Step
-            // Case where either triangle is inside the other
+        // --------------------
+        // D-Step
+        // Case where either triangle is inside the other
 
 
-            // --------------------
-            // E-Step
-            // Case where either triangle is inside the other (again)
+        // --------------------
+        // E-Step
+        // Case where either triangle is inside the other (again)
 
     }
     return false;
@@ -409,9 +446,9 @@ bool HostTriangulation::untangleTriangle(int he_index) {
     he[0] = he_index;
     he[1] = m_he[he[0]].next;
     he[2] = m_he[he[1]].next;
-    
+
     bool untangledSomething = false;
-    
+
     untangledSomething |= untangleEdge(he[0]);
     untangledSomething |= untangleEdge(he[1]);
     untangledSomething |= untangleEdge(he[2]);

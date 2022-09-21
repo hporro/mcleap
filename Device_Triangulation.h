@@ -105,6 +105,7 @@ DeviceTriangulation::DeviceTriangulation(HostTriangulation* h_triangulation) : h
     allocateMemory();
     transferToDevice();
 }
+
 DeviceTriangulation::~DeviceTriangulation() {
     freeMemory();
 }
@@ -119,6 +120,7 @@ bool DeviceTriangulation::transferToHost() {
     cudaDeviceSynchronize();
     return true;
 }
+
 bool DeviceTriangulation::transferToDevice() { 
     cudaMemcpy(m_t,   h_triangulation->m_t.data(),   m_t_size   * sizeof(Triangle),  cudaMemcpyHostToDevice);
     cudaMemcpy(m_he,  h_triangulation->m_he.data(),  m_he_size  * sizeof(HalfEdge),  cudaMemcpyHostToDevice);
@@ -127,6 +129,7 @@ bool DeviceTriangulation::transferToDevice() {
     cudaDeviceSynchronize();
     return true;
 }
+
 bool DeviceTriangulation::allocateMemory() {
     m_t_size =   h_triangulation->m_t  .size();
     m_he_size =  h_triangulation->m_he .size();
@@ -147,6 +150,7 @@ bool DeviceTriangulation::allocateMemory() {
     cudaDeviceSynchronize();
     return true;
 }
+
 bool DeviceTriangulation::freeMemory() { 
     m_t_size   = 0;
     m_he_size  = 0;

@@ -7,11 +7,9 @@
 #endif
 
 // min and max determine the coordinates of the 4 points enclosing the triangulation
-constexpr float cood_min = -100000;
-constexpr float cood_max = 100000;
+constexpr float cood_min = -10000000;
+constexpr float cood_max = 10000000;
 constexpr float EPS = 0.00000000000000001f;
-constexpr float circle_rad = 3.f;
-
 
 // -------------------------------------------
 // Structs defined
