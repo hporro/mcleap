@@ -191,28 +191,29 @@ struct DelaunayCheckFunctor {
     inline __device__ int operator()(int i, int* m_helper_t, HalfEdge* m_he, glm::vec2* m_pos) {
         int v[4];
         int t[2];
-        HalfEdge he[4];
+        HalfEdge he[2];
+
         t[0] = m_he[i * 2].t;
         t[1] = m_he[i * 2 ^ 1].t;
-        if (t[0] * t[1] < 0)return false; // if one of them is negative (convex hull of the mesh) return 0
-        he[0] = m_he[i*2];
-        he[1] = m_he[he[0].next];
-        he[2] = m_he[he[1].next];
-        he[3] = m_he[i*2 ^ 1];
+
+        he[0] = m_he[i * 2];
+        he[1] = m_he[i * 2 ^ 1];
+
         v[0] = he[0].v;
-        v[1] = m_he[m_he[m_he[i*2 ^ 1].next].next].v;
+        v[1] = he[1].op;
         v[2] = he[1].v;
-        v[3] = he[2].v;
+        v[3] = he[0].op;
+
         //if (i*2 < 100 && i*2>50)printf("i: %d v[0]: %d v[1]: %d v[2]: %d v[3]: %d incircle: %d \n", i, v[0], v[1], v[2], v[3], inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]));
 
         //for (int i = 0; i < 4; i++) {
         //    //check convexity of the bicell
         //    if (!isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
         //}
-        
+
         // if incircle and gets both triangles exclusively, then we can flip safely.
         // Still, we want to flip afterwards to decrease thread divergence
-        return inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) && (atomicExch(&m_helper_t[t[0]], i)==-1) && (atomicExch(&m_helper_t[t[1]], i)==-1);
+        return (t[0] * t[1] > 0) && inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
     }
 };
 
@@ -235,7 +236,7 @@ bool DeviceTriangulation::delonize() {
     FlipFunctor ff;
     thrust::device_ptr<int> dev_helper_he(m_helper_he);
 
-    printf("Total number of edges: %d\n", m_he_size / 2);
+    //printf("Total number of edges: %d\n", m_he_size / 2);
 
     do {
         cudaMemset(m_helper_he, 0, m_he_size * sizeof(int));
@@ -257,7 +258,7 @@ bool DeviceTriangulation::delonize() {
 
         cudaMemcpy(flips_done, m_flag, sizeof(int), cudaMemcpyDeviceToHost);
         cudaDeviceSynchronize();
-        printf("Flips done [delonize]: %d\n", flips_done[0]);
+        //printf("Flips done [delonize]: %d\n", flips_done[0]);
     } while (flips_done[0] > 0);
 
     delete[] flips_done;
@@ -353,7 +354,7 @@ bool DeviceTriangulation::untangle() {
     FlipFunctor ff;
     thrust::device_ptr<int> dev_helper_he(m_helper_he);
 
-    printf("Total number of edges: %d\n", m_he_size / 2);
+    //printf("Total number of edges: %d\n", m_he_size / 2);
 
     do {
         cudaMemset(m_helper_he, 0, m_he_size * sizeof(int));
@@ -375,7 +376,7 @@ bool DeviceTriangulation::untangle() {
 
         cudaMemcpy(flips_done, m_flag, sizeof(int), cudaMemcpyDeviceToHost);
         cudaDeviceSynchronize();
-        printf("Flips done [untangle]: %d\n", flips_done[0]);
+        //printf("Flips done [untangle]: %d\n", flips_done[0]);
     } while (flips_done[0] > 0);
 
     delete[] flips_done;

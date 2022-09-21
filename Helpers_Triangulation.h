@@ -3,7 +3,7 @@
 #include "Common_Triangulation.h"
 #include <glm/glm.hpp>
 
-__device__ __host__ inline float cross(glm::vec2 a, glm::vec2 b);
+__device__ __host__ inline float cross(glm::vec2& a, glm::vec2& b);
 __device__ __host__ inline bool operator==(glm::vec2& a, glm::vec2& b);
 __device__ __host__ inline bool isToTheLeft(glm::vec2& a, glm::vec2& b, glm::vec2& c);
 template<class T>
@@ -11,13 +11,13 @@ __device__ __host__ inline T pow2(T& a);
 template<class T>
 __device__ __host__ inline void __swap(T*& a, T*& b);
 __device__ __host__ inline bool inCircle(glm::vec2& a, glm::vec2& b, glm::vec2& c, glm::vec2& d);
-__device__ __host__ inline float sdSegment(glm::vec2 a, glm::vec2 b, glm::vec2 p);
+__device__ __host__ inline float sdSegment(glm::vec2& a, glm::vec2& b, glm::vec2& p);
 
 
 // -------------------------------------------
 // Common helper functions
-__device__ __host__ bool isInside(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, glm::vec2 p, int t_index); // checks wether a point is inside a triangle
-__device__ __host__ bool isInsideInverted(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, glm::vec2 p, int t_index); // checks wether a point is inside an inverted triangle
+__device__ __host__ bool isInside(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, glm::vec2& p, int t_index); // checks wether a point is inside a triangle
+__device__ __host__ bool isInsideInverted(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, glm::vec2& p, int t_index); // checks wether a point is inside an inverted triangle
 __device__ __host__ bool isCCW(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, int t_index); // checks wether a triangle is inverted
 __device__ __host__ bool isCreased(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, int he_index); // checks wether a edge is creased (one triangle upright and one inverted)
 __device__ __host__ bool isInvertedEdge(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, int he_index);
@@ -27,7 +27,7 @@ __device__ __host__ bool isInvertedEdge(Triangle* m_t, HalfEdge* m_he, glm::vec2
 // functions
 // -------------------------------------------
 
-__device__ __host__ inline float cross(glm::vec2 a, glm::vec2 b) {
+__device__ __host__ inline float cross(glm::vec2& a, glm::vec2& b) {
     return (a.x * b.y) - (a.y * b.x);
 }
 
@@ -36,7 +36,9 @@ __device__ __host__ inline bool operator==(glm::vec2& a, glm::vec2& b) {
 }
 
 __device__ __host__ inline bool isToTheLeft(glm::vec2& a, glm::vec2& b, glm::vec2& c) {
-    return cross(b - a, c - a) > EPS;
+    //glm::vec2 x = b - a;
+    //glm::vec2 y = c - a;
+    return ((b.x-a.x) * (c.y-a.y)) - ((b.y-a.y) * (c.x-a.x)) > -EPS;
 }
 
 template<class T>
@@ -76,16 +78,13 @@ __device__ __host__ inline float sdSegment(glm::vec2 a, glm::vec2 b, glm::vec2 p
 // -------------------------------------------
 // helper functions
 
-__device__ __host__ bool isInside(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, glm::vec2 p, int t_index) {
+__device__ __host__ bool isInside(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, glm::vec2& p, int t_index) {
     Triangle t = m_t[t_index];
     int v[3];
-    HalfEdge he[3];
-    he[0] = m_he[t.he];
-    he[1] = m_he[he[0].next];
-    he[2] = m_he[he[1].next];
-    v[0] = he[0].v;
-    v[1] = he[1].v;
-    v[2] = he[2].v;
+
+    v[0] = m_he[t.he].v;
+    v[1] = m_he[t.he^1].v;
+    v[2] = m_he[t.he].op;
 
     for (int i = 0; i < 3; i++) {
         if (!isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
@@ -93,16 +92,13 @@ __device__ __host__ bool isInside(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_po
     return true;
 }
 
-__device__ __host__ bool isInsideInverted(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, glm::vec2 p, int t_index) {
+__device__ __host__ bool isInsideInverted(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, glm::vec2& p, int t_index) {
     Triangle t = m_t[t_index];
     int v[3];
-    HalfEdge he[3];
-    he[0] = m_he[t.he];
-    he[1] = m_he[he[0].next];
-    he[2] = m_he[he[1].next];
-    v[0] = he[0].v;
-    v[1] = he[1].v;
-    v[2] = he[2].v;
+
+    v[0] = m_he[t.he].v;
+    v[1] = m_he[t.he ^ 1].v;
+    v[2] = m_he[t.he].op;
 
     for (int i = 0; i < 3; i++) {
         if (isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
@@ -111,15 +107,12 @@ __device__ __host__ bool isInsideInverted(Triangle* m_t, HalfEdge* m_he, glm::ve
 }
 
 __device__ __host__ bool isCCW(Triangle* m_t, HalfEdge* m_he, glm::vec2* m_pos, int t_index) {
-    int v[3];
-    HalfEdge he[3];
     Triangle t = m_t[t_index];
-    he[0] = m_he[t.he];
-    he[1] = m_he[he[0].next];
-    he[2] = m_he[he[1].next];
-    v[0] = he[0].v;
-    v[1] = he[1].v;
-    v[2] = he[2].v;
+    int v[3];
+
+    v[0] = m_he[t.he].v;
+    v[1] = m_he[t.he ^ 1].v;
+    v[2] = m_he[t.he].op;
 
     return isToTheLeft(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]]);
 }

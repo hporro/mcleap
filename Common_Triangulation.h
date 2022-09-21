@@ -24,7 +24,7 @@ struct f3to1_info;
 // -------------------------------------------
 // basic flips
 __device__ __host__ inline bool       f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int he_index);
-__device__ __host__ inline bool       f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info finfo, int t_index);
+__device__ __host__ inline bool       f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info& finfo, int t_index);
 __device__ __host__ inline bool       f2to4(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int he_index);
 __device__ __host__ inline f3to1_info f3to1(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int t_index);
 
@@ -98,6 +98,10 @@ __device__ __host__ inline bool f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     m_he[he[5]].t = t[0];
     m_he[he[2]].t = t[0];
 
+    m_he[he[0]].op = v[1];
+    m_he[he[5]].op = v[2];
+    m_he[he[2]].op = v[3];
+
     // t1
     m_he[he[1]].next = he[3];
     m_he[he[3]].next = he[4];
@@ -111,10 +115,14 @@ __device__ __host__ inline bool f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     m_he[he[3]].t = t[1];
     m_he[he[4]].t = t[1];
 
+    m_he[he[1]].op = v[0];
+    m_he[he[3]].op = v[3];
+    m_he[he[4]].op = v[2];
+
     return true;
 }
 
-__device__ __host__ inline bool f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info finfo, int t_index) {
+__device__ __host__ inline bool f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info& finfo, int t_index) {
     int he[9];
     int t[3];
     int v[4];
@@ -161,6 +169,10 @@ __device__ __host__ inline bool f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     m_he[he[3]].t = t[0];
     m_he[he[5]].t = t[0];
 
+    m_he[he[0]].op = v[3]; //0
+    m_he[he[3]].op = v[0]; //1
+    m_he[he[5]].op = v[1]; //3
+
     // t1
     m_he[he[1]].next = he[7];
     m_he[he[7]].next = he[4];
@@ -174,6 +186,10 @@ __device__ __host__ inline bool f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     m_he[he[7]].t = t[1];
     m_he[he[4]].t = t[1];
 
+    m_he[he[1]].op = v[3];
+    m_he[he[7]].op = v[1];
+    m_he[he[4]].op = v[2];
+
     // t2
     m_he[he[2]].next = he[6];
     m_he[he[6]].next = he[8];
@@ -186,6 +202,10 @@ __device__ __host__ inline bool f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     m_he[he[2]].t = t[2];
     m_he[he[6]].t = t[2];
     m_he[he[8]].t = t[2];
+
+    m_he[he[2]].op = v[3];
+    m_he[he[6]].op = v[2];
+    m_he[he[8]].op = v[0];
 
     return true;
 }

@@ -48,6 +48,20 @@ struct HostTriangulation {
     bool addPoints(std::vector<glm::vec2> points); // inserts with a 3to1 flip many points in the respective triangle
     bool addDelaunayPoints(std::vector<glm::vec2> points); // addDelaunayPoint for many points.
 
+    bool isInside(glm::vec2& p, int t_index) {
+        Triangle t = m_t[t_index];
+        int v[3];
+
+        v[0] = m_he[t.he].v;
+        v[1] = m_he[t.he ^ 1].v;
+        v[2] = m_he[t.he].op;
+
+        for (int i = 0; i < 3; i++) {
+            if (!isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
+        }
+        return true;
+    }
+
     // -------------------------------------------
     // delonizing
     bool delonize();
@@ -101,19 +115,20 @@ HostTriangulation::HostTriangulation() {
     m_v.push_back(Vertex{ 2,6 });
     m_v.push_back(Vertex{ 3,8 });
 
-    m_he.push_back(HalfEdge{ 2,0,0,-1 });
+    //next, v, t, op
+    m_he.push_back(HalfEdge{ 2,0,0,2 });
     m_he.push_back(HalfEdge{ 9,1,-1,-1 });
 
-    m_he.push_back(HalfEdge{ 4,1,0,1 });
+    m_he.push_back(HalfEdge{ 4,1,0,0 });
     m_he.push_back(HalfEdge{ 1,2,-1,-1 });
 
-    m_he.push_back(HalfEdge{ 0,2,0,-1 });
-    m_he.push_back(HalfEdge{ 6,0,1,-1 });
+    m_he.push_back(HalfEdge{ 0,2,0,1 });
+    m_he.push_back(HalfEdge{ 6,0,1,3 });
 
-    m_he.push_back(HalfEdge{ 8,2,1,-1 });
+    m_he.push_back(HalfEdge{ 8,2,1,0 });
     m_he.push_back(HalfEdge{ 3,3,-1,-1 });
 
-    m_he.push_back(HalfEdge{ 5,3,1,-1 });
+    m_he.push_back(HalfEdge{ 5,3,1,2 });
     m_he.push_back(HalfEdge{ 7,0,-1,-1 });
 
     m_t.push_back({ 4 });
@@ -125,28 +140,36 @@ HostTriangulation::HostTriangulation() {
 
 int HostTriangulation::findContainingTriangleIndexCheckingAll(glm::vec2 p) {
     for (int t = 0; t < m_t.size(); t++) {
-        if (isInside(m_t.data(), m_he.data(), m_pos.data(), p, t))return t;
+        if (isInside(p, t))return t;
     }
     return -1;
 }
 
 int HostTriangulation::findContainingTriangleIndexWalking(glm::vec2 p, int t_index_guess, int t_index_prev) {
 
-    while (!isInside(m_t.data(), m_he.data(), m_pos.data(), p, t_index_guess)) {
+    while (!isInside(p, t_index_guess)) {
+        Triangle t = m_t[t_index_guess];
+        int v[3];
+
+        v[0] = m_he[t.he].v;
+        v[1] = m_he[t.he ^ 1].v;
+        v[2] = m_he[t.he].op;
+
         int he[3];
-        he[0] = m_t[t_index_guess].he;
+        he[0] = t.he;
         he[1] = m_he[he[0]].next;
         he[2] = m_he[he[1]].next;
 
-        glm::vec2 p0 = m_pos[m_he[he[0]].v];
-        glm::vec2 p1 = m_pos[m_he[he[1]].v];
-        glm::vec2 p2 = m_pos[m_he[he[2]].v];
+        glm::vec2 pe[3];
+        pe[0] = m_pos[v[0]];
+        pe[1] = m_pos[v[1]];
+        pe[2] = m_pos[v[2]];
 
-        glm::vec2 centroid = (p0 + p1 + p2) / 3.f;
+        glm::vec2 centroid = (pe[0] + pe[1] + pe[2]) / 3.f;
 
         for (int i = 0; i < 3; i++) {
-            glm::vec2 s = m_pos[m_he[he[i]].v];
-            glm::vec2 r = m_pos[m_he[he[i] ^ 1].v];
+            glm::vec2 s = pe[i];
+            glm::vec2 r = pe[(i+1)%3];
 
             //checking if s-r intersects centroid-p
             if ((isToTheLeft(centroid, p, s) != isToTheLeft(centroid, p, r)) && (isToTheLeft(s, r, centroid) != isToTheLeft(s, r, p))) {
@@ -415,7 +438,7 @@ bool HostTriangulation::untangleEdge(int he_index) {
         // --------------------
         // B-Step
         // Case where the inverted triangle is inside the upright one            
-        if (isInside(m_t.data(), m_he.data(), m_pos.data(), op_inverted, t_index_upright)) {
+        if (isInside(op_inverted, t_index_upright)) {
             f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
             return true;
         }
