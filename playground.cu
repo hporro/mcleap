@@ -11,15 +11,22 @@
 int main() {
 	constexpr int numP = 10000;
 
-	std::vector<glm::vec2> h_pos;
+	std::vector<glm::vec2> h_pos, h_move;
+	glm::vec2* d_move;
+	cudaMalloc((void**)&d_move, numP * sizeof(glm::vec2));
 	std::random_device dev;
 	std::mt19937 rng{ dev() };;
 
-	std::uniform_real_distribution<float> distx(-100.0, 100.0);
+	std::uniform_real_distribution<float> pos_r(-100.0, 100.0);
+	std::uniform_real_distribution<float> move_r(-0.1, 0.1);
 
 	for (int i = 0; i < 2 * numP; i++) {
-		h_pos.push_back(glm::vec2(distx(rng), distx(rng)));
+		h_pos.push_back(glm::vec2(pos_r(rng), pos_r(rng)));
 	}
+	for (int i = 0; i < 2 * numP; i++) {
+		h_move.push_back(glm::vec2(move_r(rng), move_r(rng)));
+	}
+	cudaMemcpy(d_move, h_move.data(), numP * sizeof(glm::vec2), cudaMemcpyHostToDevice);
 
 	HostTriangulation* ht = new HostTriangulation();
 	for (auto p : h_pos) {
@@ -27,6 +34,10 @@ int main() {
 	}
 	
 	DeviceTriangulation dt(ht);
+	dt.untangle();
+	dt.delonize();
+	dt.movePoints(d_move);
+	dt.untangle();
 	dt.delonize();
 
 	//checking delaunay condition

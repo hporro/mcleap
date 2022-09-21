@@ -32,3 +32,10 @@ __global__ void doGivenCompacted(int* compacted, int* flag, Functor f , Args... 
 		f(compacted[i], args...);
 	}
 }
+
+__global__ void move_points_kernel(int n, glm::vec2* pos, glm::vec2* d) {
+	const int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < n) {
+		pos[i]+=d[i];
+	}
+}

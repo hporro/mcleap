@@ -45,7 +45,7 @@ struct HalfEdge {
     int next; // next halfedge
     int v; // this half edge comes from v
     int t; // triangle that contains t
-    int a; // alignement. It has no meaning, and stores nothing.
+    int op; // opposite vertex (not in effective use yet)
 };
 
 struct Triangle {

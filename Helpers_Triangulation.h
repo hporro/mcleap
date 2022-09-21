@@ -8,6 +8,8 @@ __device__ __host__ inline bool operator==(glm::vec2& a, glm::vec2& b);
 __device__ __host__ inline bool isToTheLeft(glm::vec2& a, glm::vec2& b, glm::vec2& c);
 template<class T>
 __device__ __host__ inline T pow2(T& a);
+template<class T>
+__device__ __host__ inline void __swap(T*& a, T*& b);
 __device__ __host__ inline bool inCircle(glm::vec2& a, glm::vec2& b, glm::vec2& c, glm::vec2& d);
 __device__ __host__ inline float sdSegment(glm::vec2 a, glm::vec2 b, glm::vec2 p);
 
@@ -40,6 +42,13 @@ __device__ __host__ inline bool isToTheLeft(glm::vec2& a, glm::vec2& b, glm::vec
 template<class T>
 __device__ __host__ inline T pow2(T& a) {
     return a * a;
+}
+
+template<class T>
+__device__ __host__ inline void __swap(T* a, T* b) {
+    T temp = *a;
+    *a = *b;
+    *b = temp;
 }
 
 // FOR SOME REASON THIS HAS TO BE DOUBLE PRESICION, DO NOT TOUCH (IM TALKING TO YOU HEINICH)
