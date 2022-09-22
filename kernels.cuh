@@ -3,11 +3,11 @@
 #include "Common_Triangulation.h"
 
 // Functor is supposed to output 0 if not and 1 if yes
-template<class Functor, typename... Args>
-__global__ void resCollector(int n, int* res, Functor f, Args... args) {
+template<class PredicateFunctor, typename... Args>
+__global__ void resCollector(int n, int* res, PredicateFunctor f, Args... args) {
 	const int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < n) {
-		res[i] = f(i,args...);
+		res[i] |= f(i,args...);
 	}
 }
 
@@ -25,8 +25,8 @@ __global__ void compactIncScanned(int n, int* scanned, int* compacted, int* flag
 	}
 }
 
-template<class Functor, typename... Args>
-__global__ void doGivenCompacted(int* compacted, int* flag, Functor f , Args... args) {
+template<class MutatingFunctor, typename... Args>
+__global__ void doGivenCompacted(int* compacted, int* flag, MutatingFunctor f , Args... args) {
 	const int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < flag[0]) {
 		f(compacted[i], args...);

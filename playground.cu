@@ -17,7 +17,7 @@ struct cmp_points {
 };
 
 int main(int argc, char* argv[]) {
-	int numP = 1000000; // ~1:50[min] for 10e6, ~1.5[s] for 10e5 (in Release mode in the notebook while doing profiling with vs diagnostics tool)
+	int numP = 100000; // ~1:50[min] for 10e6, ~1.5[s] for 10e5 (in Release mode in the notebook while doing profiling with and diagnostics tool)
 	double bounds = 10000.0;
 	double movement = 0.1;
 	if (argc > 1) {

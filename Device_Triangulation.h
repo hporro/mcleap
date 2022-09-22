@@ -208,7 +208,7 @@ struct DelaunayCheckFunctor {
 
         //for (int i = 0; i < 4; i++) {
         //    //check convexity of the bicell
-        //    if (!isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
+        //    if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
         //}
 
         // if incircle and gets both triangles exclusively, then we can flip safely.
@@ -390,7 +390,9 @@ bool DeviceTriangulation::oneRing(int v_index) {
     return false;
 }
 
+
 bool DeviceTriangulation::getFRNN(int v_index, float r) {
+
     return false;
 }
 

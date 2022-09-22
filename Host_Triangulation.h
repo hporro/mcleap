@@ -34,7 +34,7 @@ struct HostTriangulation {
     // -------------------------------------------
     // incremental construction
     __device__ __host__ int findContainingTriangleIndexCheckingAll(glm::vec2 p);
-    __device__ __host__ int findContainingTriangleIndexWalking(glm::vec2& p, int t_index_guess, int t_index_prev);
+    __device__ __host__ int findContainingTriangleIndexWalking(const glm::vec2& p, int t_index_guess, int t_index_prev);
     bool addPoint(glm::vec2 p, int t_index); // inserts with a 3to1 flip a point in the respective triangle
     bool addPoint(glm::vec2 p); // inserts with a 3to1 flip a point in the respective triangle
 
@@ -57,7 +57,7 @@ struct HostTriangulation {
         v[2] = m_he[t.he].op;
 
         for (int i = 0; i < 3; i++) {
-            if (!isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
+            if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
         }
         return true;
     }
@@ -145,7 +145,7 @@ int HostTriangulation::findContainingTriangleIndexCheckingAll(glm::vec2 p) {
     return -1;
 }
 
-int HostTriangulation::findContainingTriangleIndexWalking(glm::vec2& p, int t_index_guess, int t_index_prev) {
+int HostTriangulation::findContainingTriangleIndexWalking(const glm::vec2& p, int t_index_guess, int t_index_prev) {
 
     keep_walking: {
         Triangle t = m_t[t_index_guess];
@@ -173,7 +173,7 @@ int HostTriangulation::findContainingTriangleIndexWalking(glm::vec2& p, int t_in
             // CARE: in the if below, it has to be the twin
             if (m_he[he[i] ^ 1].t != t_index_prev) {
                 //checking if s-r intersects centroid-p
-                if ((isToTheLeft(centroid, p, pe[i]) != isToTheLeft(centroid, p, pe[(i + 1) % 3])) && (isToTheLeft(pe[i], pe[(i + 1) % 3], centroid) != isToTheLeft(pe[i], pe[(i + 1) % 3], p))) {
+                if ((orient2d(centroid, p, pe[i]) != orient2d(centroid, p, pe[(i + 1) % 3])) && (orient2d(pe[i], pe[(i + 1) % 3], centroid) != orient2d(pe[i], pe[(i + 1) % 3], p))) {
                     t_index_prev = t_index_guess;
                     t_index_guess = m_he[he[i] ^ 1].t;
                     goto keep_walking;
@@ -316,7 +316,7 @@ bool HostTriangulation::delonizeEdge(int he_index) {
     v[3] = he[2].v;
     for (int i = 0; i < 4; i++) {
         //check convexity of the bicell
-        if (!isToTheLeft(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
+        if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
     }
     if (inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])) {
         f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);

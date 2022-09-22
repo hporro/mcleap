@@ -6,10 +6,15 @@
 #define __host__
 #endif
 
+#include <gcem.hpp>
+
 // min and max determine the coordinates of the 4 points enclosing the triangulation
 constexpr float cood_min = -10000000;
 constexpr float cood_max = 10000000;
 constexpr float EPS = 0.00000000000000001f;
+constexpr double UEPS = std::numeric_limits<double>::epsilon();
+constexpr double phi = 2.0 * gcem::floor((-1 + gcem::sqrt(4.0 * 1.0 / UEPS + 45.0)) / 4.0);
+constexpr double theta = 3.0 * UEPS - (phi - 22.0) * UEPS * UEPS;
 
 // -------------------------------------------
 // Structs defined
@@ -23,10 +28,10 @@ struct f3to1_info;
 
 // -------------------------------------------
 // basic flips
-__device__ __host__ inline void       f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int he_index);
-__device__ __host__ inline void       f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info& finfo, int t_index);
-__device__ __host__ inline void       f2to4(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int he_index);
-__device__ __host__ inline f3to1_info f3to1(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int t_index);
+__device__ __host__ inline void       f2to2(Triangle* m_t,HalfEdge* m_he, Vertex* m_v, const int he_index);
+__device__ __host__ inline void       f1to3(Triangle* m_t,HalfEdge* m_he, Vertex* m_v, const f3to1_info& finfo, const int t_index);
+__device__ __host__ inline void       f2to4(Triangle* m_t,HalfEdge* m_he, Vertex* m_v, const int v_index, const int he_index);
+__device__ __host__ inline f3to1_info f3to1(Triangle* m_t,HalfEdge* m_he, Vertex* m_v, const int v_index, const int t_index);
 
 
 // -------------------------------------------
@@ -60,7 +65,7 @@ struct f3to1_info {
 // -------------------------------------------
 // flipping
 
-__device__ __host__ inline void f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int he_index) {
+__device__ __host__ inline void f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, const int he_index) {
     int v[4];
     int he[6];
     int t[2];
@@ -120,20 +125,16 @@ __device__ __host__ inline void f2to2(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     m_he[he[4]].op = v[2];
 }
 
-__device__ __host__ inline void f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, f3to1_info& finfo, int t_index) {
+__device__ __host__ inline void f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, const f3to1_info& finfo, const int t_index) {
     int he[9];
     int t[3];
     int v[4];
-
-    int v_index = finfo.v_index;
-
-    Triangle tr = m_t[t_index];
 
     t[0] = t_index;
     t[1] = finfo.t0_index;
     t[2] = finfo.t1_index;
 
-    he[0] = tr.he;
+    he[0] = m_t[t_index].he;
     he[1] = m_he[he[0]].next;
     he[2] = m_he[he[1]].next;
     he[8] = finfo.he0_index;
@@ -146,7 +147,7 @@ __device__ __host__ inline void f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     v[0] = m_he[he[0]].v;
     v[1] = m_he[he[1]].v;
     v[2] = m_he[he[2]].v;
-    v[3] = v_index;
+    v[3] = finfo.v_index;
 
     m_t[t[0]].he = he[0];
     m_t[t[1]].he = he[1];
@@ -206,6 +207,8 @@ __device__ __host__ inline void f1to3(Triangle* m_t, HalfEdge* m_he, Vertex* m_v
     m_he[he[8]].op = v[0];
 }
 
-__device__ __host__ inline void f2to4(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int he_index) {}
-__device__ __host__ inline f3to1_info f3to1(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, int v_index, int t_index) { return {}; }
+__device__ __host__ inline void f2to4(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, const int v_index, const int he_index) {}
+__device__ __host__ inline f3to1_info f3to1(Triangle* m_t, HalfEdge* m_he, Vertex* m_v, const int v_index, const int t_index) {
+    return {}; 
+}
 
