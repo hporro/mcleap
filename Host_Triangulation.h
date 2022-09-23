@@ -33,8 +33,8 @@ struct HostTriangulation {
 
     // -------------------------------------------
     // incremental construction
-    __device__ __host__ int findContainingTriangleIndexCheckingAll(glm::vec2 p);
-    __device__ __host__ int findContainingTriangleIndexWalking(const glm::vec2& p, int t_index_guess, int t_index_prev);
+    __device__ __host__ int findContainingTriangleIndexCheckingAll(glm::vec2& p);
+    __device__ __host__ int findContainingTriangleIndexWalking(const glm::vec2& p, int t_index_guess);
     bool addPoint(glm::vec2 p, int t_index); // inserts with a 3to1 flip a point in the respective triangle
     bool addPoint(glm::vec2 p); // inserts with a 3to1 flip a point in the respective triangle
 
@@ -138,15 +138,16 @@ HostTriangulation::HostTriangulation() {
 // -------------------------------------------
 // incremental construction
 
-int HostTriangulation::findContainingTriangleIndexCheckingAll(glm::vec2 p) {
+int HostTriangulation::findContainingTriangleIndexCheckingAll(glm::vec2& p) {
     for (int t = 0; t < m_t.size(); t++) {
         if (isInside(p, t))return t;
     }
     return -1;
 }
 
-int HostTriangulation::findContainingTriangleIndexWalking(const glm::vec2& p, int t_index_guess, int t_index_prev) {
+int HostTriangulation::findContainingTriangleIndexWalking(const glm::vec2& p, int t_index_guess) {
 
+    int t_index_prev = -1;
     keep_walking: {
         Triangle t = m_t[t_index_guess];
         int v[3];
@@ -246,7 +247,7 @@ bool HostTriangulation::addPoint(glm::vec2 p) {
 }
 
 bool HostTriangulation::addDelaunayPoint(glm::vec2 p) {
-    int t_index = findContainingTriangleIndexWalking(p, m_t.size() - 1, -1);
+    int t_index = findContainingTriangleIndexWalking(p, m_t.size() - 1);
     if (t_index == -1)return false; // couldnt find the triangle for some reason
     m_pos.push_back(p);
     m_v.push_back(Vertex{ (int)m_pos.size() - 1 });
@@ -272,9 +273,10 @@ bool HostTriangulation::addDelaunayPoint(glm::vec2 p) {
     };
 
     f1to3(m_t.data(), m_he.data(), m_v.data(), finfo, t_index);
-    delonizeTriangle(t_index);
-    delonizeTriangle(m_t.size() - 1);
-    delonizeTriangle(m_t.size() - 2);
+    //delonizeTriangle(t_index);
+    //delonizeTriangle(m_t.size() - 1);
+    //delonizeTriangle(m_t.size() - 2);
+    delonizeVertex(m_v.size() - 1);
     return true;
 }
 
@@ -298,42 +300,33 @@ bool HostTriangulation::delonize() {
 }
 
 
-//returns true if theres some flipping
+//returns true if theres some legalizing done
 bool HostTriangulation::delonizeEdge(int he_index) {
 
     if (m_he[he_index].t == -1)return false;
     if (m_he[he_index ^ 1].t == -1)return false;
 
     int v[4];
-    HalfEdge he[4];
-    he[0] = m_he[he_index];
-    he[1] = m_he[he[0].next];
-    he[2] = m_he[he[1].next];
-    he[3] = m_he[he_index ^ 1];
-    v[0] = he[0].v;
-    v[1] = m_he[m_he[m_he[he_index ^ 1].next].next].v;
-    v[2] = he[1].v;
-    v[3] = he[2].v;
-    for (int i = 0; i < 4; i++) {
-        //check convexity of the bicell
-        if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
-    }
+
+    v[0] = m_he[he_index].v;
+    v[1] = m_he[he_index ^ 1].op;
+    v[2] = m_he[he_index ^ 1].v;
+    v[3] = m_he[he_index].op;
+
+    //for (int i = 0; i < 4; i++) {
+    //    //check convexity of the bicell
+    //    if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
+    //}
+
     if (inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])) {
         f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
-        int ihe[4];
-        ihe[0] = m_he[he_index].next;
-        ihe[1] = m_he[ihe[0]].next;
-        ihe[2] = m_he[he_index ^ 1].next;
-        ihe[3] = m_he[ihe[2]].next;
-        for (int i = 0; i < 4; i++) {
-            delonizeEdge(ihe[i]);
-        }
         return true;
     }
     return false;
 }
 
 //returns true if there was some flipping
+//legalizes the edges around
 bool HostTriangulation::delonizeTriangle(int t_index) {
     Triangle t = m_t[t_index];
     int he[3];
@@ -353,42 +346,36 @@ bool HostTriangulation::delonizeTriangle(int t_index) {
 #define PREV_OUTGOING(he_index) m_he[he_index^1].next
 
 bool HostTriangulation::delonizeVertex(int v_index) {
-    int initial_he = m_v[v_index].he;
+    int initial_outgoing_he = m_v[v_index].he;
 
-    if (m_he[initial_he].t == -1)initial_he = initial_he ^ 1;
-    if (delonizeTriangle(m_he[initial_he].t)) { delonizeVertex(v_index); return true; }
+    if (m_he[initial_outgoing_he].t == -1)initial_outgoing_he = initial_outgoing_he ^ 1;
 
-    int curr_he = NEXT_OUTGOING(initial_he);
-    //printf("\n\n");
-    //printf("init_he: %d\n", initial_he);
+    int curr_outgoing_he = initial_outgoing_he;
 
-    while (curr_he != initial_he) {
-        //printf("curr_he: %d\n", curr_he);
-        if (m_he[curr_he].t == -1)break;
-        if (delonizeTriangle(m_he[curr_he].t)) {
-            delonizeVertex(v_index);
-            return true;
+    do {
+        int curr_link_he = m_he[curr_outgoing_he].next;
+        while (delonizeEdge(curr_link_he)) {
+            curr_link_he = m_he[curr_outgoing_he].next;
         }
-        curr_he = NEXT_OUTGOING(curr_he);
-    }
-    // is necessary to go backwards too, in the cases close to the border of the triangulation (connected to the 4 vertices enclosing it)
-    curr_he = PREV_OUTGOING(initial_he);
-    //printf("backwards\n");
-    while (curr_he != initial_he) {
-        //printf("curr_he: %d\n", curr_he);
-        if (m_he[curr_he].t == -1)break;
-        if (delonizeTriangle(m_he[curr_he].t)) {
-            delonizeVertex(v_index);
-            return true;
-        }
-        curr_he = PREV_OUTGOING(curr_he);
-    }
+        curr_outgoing_he = NEXT_OUTGOING(curr_outgoing_he);
+    } while (curr_outgoing_he != initial_outgoing_he);
+
+    curr_outgoing_he = initial_outgoing_he;
+
+    //do {
+    //    int curr_link_he = m_he[m_he[curr_outgoing_he].next].next;
+    //    while (delonizeEdge(curr_link_he)) {
+    //        curr_link_he = m_he[m_he[curr_outgoing_he].next].next;
+    //    }
+    //    curr_outgoing_he = PREV_OUTGOING(curr_outgoing_he);
+    //} while (curr_outgoing_he != initial_outgoing_he);
+
+
     return false;
 }
 
-#undef NETX_OUTGOING
+#undef NEXT_OUTGOING
 #undef PREV_OUTGOING
-
 
 // -------------------------------------------
 // Moving points

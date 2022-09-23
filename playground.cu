@@ -4,20 +4,23 @@
 #include <glm/glm.hpp>
 #include <random>
 
+#include <libmorton/morton.h>
+
 #include "Host_Triangulation.h"
 #include "Helpers_Triangulation.h"
 #include "Device_Triangulation.h"
 
 struct cmp_points {
 	bool operator()(glm::vec2& a, glm::vec2& b) {
-		if (a.x < b.x)return false;
-		if (a.y < b.y)return false;
+		uint_fast32_t am = libmorton::m2D_e_LUT< uint_fast32_t, uint_fast32_t>(a.x, a.y);
+		uint_fast32_t bm = libmorton::m2D_e_LUT< uint_fast32_t, uint_fast32_t>(b.x, b.y);
+		return am < bm;
 		return true;
 	}
 };
 
 int main(int argc, char* argv[]) {
-	int numP = 100000; // ~1:50[min] for 10e6, ~1.5[s] for 10e5 (in Release mode in the notebook while doing profiling with and diagnostics tool)
+	int numP = 1000000; // ~8[s] for 10e6, ~2[s] for 10e5 (in Debug mode in the office while doing profiling and diagnostics tool)
 	double bounds = 10000.0;
 	double movement = 0.1;
 	if (argc > 1) {
@@ -56,7 +59,7 @@ int main(int argc, char* argv[]) {
 	DeviceTriangulation dt(ht);
 	dt.untangle();
 	dt.delonize();
-	for (int i = 0; i < 1; i++) {
+	for (int i = 0; i < 20; i++) {
 		dt.movePoints(d_move);
 		dt.untangle();
 		dt.delonize();
