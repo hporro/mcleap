@@ -25,7 +25,102 @@
 // -------------------------------------------
 
 struct DeviceTriangulation;
+struct DelaunayCheckFunctor;
+struct UntangleCheckFunctor;
+struct FlipFunctor;
 
+struct DelaunayCheckFunctor {
+    // i-> is edge number. HalfEdges are 2*i and 2*i+1
+    inline __device__ int operator()(int i, int* m_helper_t, HalfEdge* m_he, glm::vec2* m_pos) {
+        int v[4];
+        int t[2];
+        HalfEdge he[2];
+
+        t[0] = m_he[i * 2].t;
+        t[1] = m_he[i * 2 ^ 1].t;
+
+        he[0] = m_he[i * 2];
+        he[1] = m_he[i * 2 ^ 1];
+
+        v[0] = he[0].v;
+        v[1] = he[1].op;
+        v[2] = he[1].v;
+        v[3] = he[0].op;
+
+        //if (i*2 < 100 && i*2>50)printf("i: %d v[0]: %d v[1]: %d v[2]: %d v[3]: %d incircle: %d \n", i, v[0], v[1], v[2], v[3], inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]));
+
+        //for (int i = 0; i < 4; i++) {
+        //    //check convexity of the bicell
+        //    if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
+        //}
+
+        // if incircle and gets both triangles exclusively, then we can flip safely.
+        // Still, we want to flip afterwards to decrease thread divergence
+        return (t[0] * t[1] > 0) && inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
+    }
+};
+
+// This is simple in the sense that it only deals with simple untanglings. 
+// Not with far away ones.
+struct UntangleCheckFunctor {
+    // i-> is edge number. HalfEdges are 2*i and 2*i+1
+    inline __device__ int operator()(int i, int* m_helper_t, Triangle* m_t, HalfEdge* m_he, Vertex* m_v, glm::vec2* m_pos) {
+        int he_index = i * 2;
+        if (isCreased(m_t, m_he, m_pos, he_index)) {
+            int he_upright = he_index;
+            int he_inverted = he_index ^ 1;
+
+            // we assume that he_upright is the upright one, and he_inverted is the inverted one
+            if (!isCCW(m_t, m_he, m_pos, m_he[he_upright].t))__swap(&he_upright, &he_inverted);
+
+            glm::vec2 op_upright = m_pos[m_he[he_upright].op];
+            glm::vec2 op_inverted = m_pos[m_he[he_inverted].op];
+
+            int t_index_upright = m_he[he_upright].t;
+            int t_index_inverted = m_he[he_inverted].t;
+
+            // --------------------
+            // A-Step
+            // Case where either triangle has 0 area
+            // TODO: implement this
+
+            // --------------------
+            // B-Step
+            // Case where the inverted triangle is inside the upright one            
+            if (isInside(m_t, m_he, m_pos, op_inverted, t_index_upright)) {
+                return (atomicExch(&m_helper_t[t_index_upright], i) == -1) && (atomicExch(&m_helper_t[t_index_inverted], i) == -1);
+            }
+
+            // --------------------
+            // C-Step
+            // Case where the upright triangle is inside the inverted one
+            else if (isInsideInverted(m_t, m_he, m_pos, op_upright, t_index_inverted)) {
+                return (atomicExch(&m_helper_t[t_index_upright], i) == -1) && (atomicExch(&m_helper_t[t_index_inverted], i) == -1);
+            }
+
+            // --------------------
+            // D-Step
+            // Case where either triangle is inside the other
+            // Here there's a possible flip, but you end up with another 2 inverted triangles
+            // This can lead to other flips that untangle the triangulation
+
+
+            // --------------------
+            // E-Step
+            // Case where either triangle is inside the other, but you end up with another 2 inverted triangles (again)
+            // This cannot lead to other flips that untangle the triangulation (that's why this is another case)
+        }
+        return false;
+
+    }
+};
+
+struct FlipFunctor {
+    // i-> is edge number. HalfEdges are 2*i and 2*i+1
+    inline __device__ int operator()(int i, Triangle* m_t, HalfEdge* m_he, Vertex* m_v) {
+        f2to2(m_t, m_he, m_v, i * 2);
+    }
+};
 
 // this implementation does not handle removing defragmentation of the std::vectors
 struct DeviceTriangulation {
@@ -42,6 +137,13 @@ struct DeviceTriangulation {
     Vertex* m_v;
     HalfEdge* m_he;
     Triangle* m_t;
+
+    // helper host data
+    int flips_done[1];
+    UntangleCheckFunctor sucf;
+    FlipFunctor ff;
+    DelaunayCheckFunctor dcf;
+
     // helper device data
     int blocksize = 128;
     int* m_flag;
@@ -188,54 +290,14 @@ int DeviceTriangulation::findContainingTriangleIndexWalking(glm::vec2 p, int t_i
 // -------------------------------------------
 // delonizing
 
-struct DelaunayCheckFunctor {
-    // i-> is edge number. HalfEdges are 2*i and 2*i+1
-    inline __device__ int operator()(int i, int* m_helper_t, HalfEdge* m_he, glm::vec2* m_pos) {
-        int v[4];
-        int t[2];
-        HalfEdge he[2];
-
-        t[0] = m_he[i * 2].t;
-        t[1] = m_he[i * 2 ^ 1].t;
-
-        he[0] = m_he[i * 2];
-        he[1] = m_he[i * 2 ^ 1];
-
-        v[0] = he[0].v;
-        v[1] = he[1].op;
-        v[2] = he[1].v;
-        v[3] = he[0].op;
-
-        //if (i*2 < 100 && i*2>50)printf("i: %d v[0]: %d v[1]: %d v[2]: %d v[3]: %d incircle: %d \n", i, v[0], v[1], v[2], v[3], inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]));
-
-        //for (int i = 0; i < 4; i++) {
-        //    //check convexity of the bicell
-        //    if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
-        //}
-
-        // if incircle and gets both triangles exclusively, then we can flip safely.
-        // Still, we want to flip afterwards to decrease thread divergence
-        return (t[0] * t[1] > 0) && inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])>0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
-    }
-};
-
-struct FlipFunctor {
-    // i-> is edge number. HalfEdges are 2*i and 2*i+1
-    inline __device__ int operator()(int i, Triangle* m_t, HalfEdge* m_he, Vertex* m_v) {
-        f2to2(m_t, m_he, m_v, i*2);
-    }
-};
-
 bool DeviceTriangulation::delonize() {
 
-    int* flips_done = new int[1];
     flips_done[0] = 0;
 
     dim3 dimBlock(blocksize);
     dim3 dimGrid((m_he_size / 2 + blocksize - 1) / dimBlock.x);
 
-    DelaunayCheckFunctor dcf;
-    FlipFunctor ff;
+
     thrust::device_ptr<int> dev_helper_he(m_helper_he);
 
     //printf("Total number of edges: %d\n", m_he_size / 2);
@@ -263,7 +325,6 @@ bool DeviceTriangulation::delonize() {
         //printf("Flips done [delonize]: %d\n", flips_done[0]);
     } while (flips_done[0] > 0);
 
-    delete[] flips_done;
     return true;
 }
 
@@ -288,72 +349,13 @@ bool DeviceTriangulation::moveUntanglingDelaunay(int p_index, glm::vec2 d) { ret
 // -------------------------------------------
 // Untangling Mesh
 
-// This is simple in the sense that it only deals with simple untanglings. 
-// Not with far away ones.
-struct SimpleUntangleCheckFunctor {
-    // i-> is edge number. HalfEdges are 2*i and 2*i+1
-    inline __device__ int operator()(int i, int* m_helper_t, Triangle* m_t, HalfEdge* m_he, Vertex* m_v, glm::vec2* m_pos) {
-        int he_index = i*2;
-        if (isCreased(m_t, m_he, m_pos, he_index)) {
-            int he_upright = he_index;
-            int he_inverted = he_index^1;
-
-            // we assume that he_upright is the upright one, and he_inverted is the inverted one
-            if (!isCCW(m_t, m_he, m_pos, m_he[he_upright].t))__swap(&he_upright, &he_inverted);
-
-            glm::vec2 op_upright = m_pos[m_he[he_upright].op];
-            glm::vec2 op_inverted = m_pos[m_he[he_inverted].op];
-
-            int t_index_upright = m_he[he_upright].t;
-            int t_index_inverted = m_he[he_inverted].t;
-
-            // --------------------
-            // A-Step
-            // Case where either triangle has 0 area
-            // TODO: implement this
-
-            // --------------------
-            // B-Step
-            // Case where the inverted triangle is inside the upright one            
-            if (isInside(m_t, m_he, m_pos, op_inverted, t_index_upright)) {
-                return (atomicExch(&m_helper_t[t_index_upright], i) == -1) && (atomicExch(&m_helper_t[t_index_inverted], i) == -1);
-            }
-
-            // --------------------
-            // C-Step
-            // Case where the upright triangle is inside the inverted one
-            else if (isInsideInverted(m_t, m_he, m_pos, op_upright, t_index_inverted)) {
-                return (atomicExch(&m_helper_t[t_index_upright], i) == -1) && (atomicExch(&m_helper_t[t_index_inverted], i) == -1);
-            }
-
-            // --------------------
-            // D-Step
-            // Case where either triangle is inside the other
-            // Here there's a possible flip, but you end up with another 2 inverted triangles
-            // This can lead to other flips that untangle the triangulation
-
-
-            // --------------------
-            // E-Step
-            // Case where either triangle is inside the other, but you end up with another 2 inverted triangles (again)
-            // This cannot lead to other flips that untangle the triangulation (that's why this is another case)
-        }
-        return false;
-
-    }
-};
-
 bool DeviceTriangulation::untangle() {
     //m_flag stores whether or not theres something to do, and how much flips can be made in this iteration
-
-    int* flips_done = new int[1];
     flips_done[0] = 0;
 
     dim3 dimBlock(blocksize);
     dim3 dimGrid((m_he_size / 2 + blocksize - 1) / dimBlock.x);
 
-    SimpleUntangleCheckFunctor sucf;
-    FlipFunctor ff;
     thrust::device_ptr<int> dev_helper_he(m_helper_he);
 
     //printf("Total number of edges: %d\n", m_he_size / 2);
@@ -364,7 +366,7 @@ bool DeviceTriangulation::untangle() {
         cudaMemset(m_flag, 0, sizeof(int));
         cudaDeviceSynchronize();
 
-        resCollector<SimpleUntangleCheckFunctor> << <dimGrid, dimBlock >> > (m_he_size / 2, m_helper_he, sucf, m_helper_t, m_t, m_he, m_v, m_pos);
+        resCollector<UntangleCheckFunctor> << <dimGrid, dimBlock >> > (m_he_size / 2, m_helper_he, sucf, m_helper_t, m_t, m_he, m_v, m_pos);
         cudaDeviceSynchronize();
 
         thrust::inclusive_scan(dev_helper_he, dev_helper_he + m_he_size / 2, dev_helper_he);
@@ -381,7 +383,6 @@ bool DeviceTriangulation::untangle() {
         //printf("Flips done [untangle]: %d\n", flips_done[0]);
     } while (flips_done[0] > 0);
 
-    delete[] flips_done;
     return true;
 }
 
