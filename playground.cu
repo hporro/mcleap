@@ -36,8 +36,8 @@ int main(int argc, char* argv[]) {
 	std::vector<glm::vec2> h_pos, h_move;
 	glm::vec2* d_move;
 	cudaMalloc((void**)&d_move, numP * sizeof(glm::vec2));
-	std::random_device dev;
-	std::mt19937 rng{ dev() };;
+	std::random_device dev();
+	std::mt19937 rng{ 3 };
 
 	std::uniform_real_distribution<float> pos_r(-bounds, bounds);
 	std::uniform_real_distribution<float> move_r(-movement, movement);
@@ -55,14 +55,26 @@ int main(int argc, char* argv[]) {
 	for (auto p : h_pos) {
 		ht->addDelaunayPoint(p);
 	}
-	
+	printf("Triangulated (in the host)!!\n");
+
+	int* d_ring_neighbors, * h_ring_neighbors;
+	constexpr int max_ring_neighbors = 10;
+	cudaMalloc((void**)&d_ring_neighbors, numP * max_ring_neighbors * sizeof(int));
+	int* d_neighbors, * h_neighbors;
+	constexpr int max_neighbors = 200;
+	cudaMalloc((void**)&d_neighbors, numP * max_neighbors * sizeof(int));
+
 	DeviceTriangulation dt(ht);
 	dt.untangle();
 	dt.delonize();
-	for (int i = 0; i < 20; i++) {
+	dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
+	dt.getFRNN<max_ring_neighbors,max_neighbors>(70.f,d_ring_neighbors,d_neighbors);
+	for (int i = 0; i < 2; i++) {
 		dt.movePoints(d_move);
 		dt.untangle();
 		dt.delonize();
+		dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
+		dt.getFRNN<max_ring_neighbors, max_neighbors>(70.f, d_ring_neighbors, d_neighbors);
 		int non_delaunay_edges_count = 0;
 		int creased_edges_count = 0;
 		int inverted_edges_count = 0;

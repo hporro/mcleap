@@ -57,7 +57,7 @@ struct HostTriangulation {
         v[2] = m_he[t.he].op;
 
         for (int i = 0; i < 3; i++) {
-            if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
+            if (orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
         }
         return true;
     }
@@ -348,7 +348,7 @@ bool HostTriangulation::delonizeTriangle(int t_index) {
 bool HostTriangulation::delonizeVertex(int v_index) {
     int initial_outgoing_he = m_v[v_index].he;
 
-    if (m_he[initial_outgoing_he].t == -1)initial_outgoing_he = initial_outgoing_he ^ 1;
+    //if (m_he[initial_outgoing_he].t == -1)initial_outgoing_he = initial_outgoing_he ^ 1;
 
     int curr_outgoing_he = initial_outgoing_he;
 
