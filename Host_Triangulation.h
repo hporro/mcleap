@@ -57,7 +57,7 @@ struct HostTriangulation {
         v[2] = m_he[t.he].op;
 
         for (int i = 0; i < 3; i++) {
-            if (orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
+            if (orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p)<=0)return false;
         }
         return true;
     }
@@ -318,7 +318,7 @@ bool HostTriangulation::delonizeEdge(int he_index) {
     //    if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
     //}
 
-    if (inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])) {
+    if (inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])>0) {
         f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
         return true;
     }

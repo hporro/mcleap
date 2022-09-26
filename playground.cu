@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
 			v[2] = he[1].v;
 			v[3] = he[2].v;
 		
-			if (inCircle(ht->m_pos[v[0]], ht->m_pos[v[1]], ht->m_pos[v[2]], ht->m_pos[v[3]]))non_delaunay_edges_count++;
+			if (inCircle(ht->m_pos[v[0]], ht->m_pos[v[1]], ht->m_pos[v[2]], ht->m_pos[v[3]])>0)non_delaunay_edges_count++;
 			if (isCreased(ht->m_t.data(), ht->m_he.data(), ht->m_pos.data(), i * 2))creased_edges_count++;
 			if (isInvertedEdge(ht->m_t.data(), ht->m_he.data(), ht->m_pos.data(), i * 2))inverted_edges_count++;
 		

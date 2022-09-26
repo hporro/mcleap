@@ -64,6 +64,8 @@ __global__ void computeOneRingNeighbors_kernel(const HalfEdge* m_he, const Verte
 			//if (i < 100 && i>80)printf("i: %d num_ring_neighbors: %d curr_he: %d\n", i, counter, curr_outgoing_he);
 		} while (curr_outgoing_he != initial_outgoing_he);
 
+		__syncthreads();
+
 		ring_neighbors[i] = counter; // first space of the vertex reserved to the total number of neighbors
 		//if (i < 100 && i>80)printf("i: %d num_ring_neighbors: %d\n", i, counter);
 
@@ -121,6 +123,8 @@ __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const i
 				}
 			}
 		}
+
+		__syncthreads();
 
 		neighbors[i] = neighbors_counter;
 		//if(i == 90)printf("i: %d num_neighbors: %d\n",i,neighbors_counter);

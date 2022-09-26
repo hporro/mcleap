@@ -4,12 +4,12 @@
 #include <glm/glm.hpp>
 
 __device__ __host__ inline bool operator==( const glm::vec2& a, const glm::vec2& b);
-__device__ __host__ inline bool orient2d(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c);
+__device__ __host__ inline int orient2d(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c);
 template<class T>
 __device__ __host__ inline T pow2(const T& a);
 template<class T>
 __device__ __host__ inline void __swap(T*& a, T*& b);
-__device__ __host__ inline bool inCircle(  const glm::vec2& a, const glm::vec2& b, const glm::vec2& c, const glm::vec2& d);
+__device__ __host__ inline int inCircle(  const glm::vec2& a, const glm::vec2& b, const glm::vec2& c, const glm::vec2& d);
 __device__ __host__ inline float sdSegment(const glm::vec2& a, const glm::vec2& b, const glm::vec2& p);
 
 
@@ -30,7 +30,7 @@ __device__ __host__ inline bool operator==(const glm::vec2& a, const glm::vec2& 
     return (abs(a.x - b.x) < EPS && abs(a.y - b.y) < EPS);
 }
 
-__device__ __host__ inline bool orient2d(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c) {
+__device__ __host__ inline int orient2d(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c) {
     //glm::vec2 x = b - a;
     //glm::vec2 y = c - a;
     double l  = ((double)b.x - (double)a.x) * ((double)c.y - (double)a.y);
@@ -64,7 +64,8 @@ __device__ __host__ inline bool orient2d(const glm::vec2& a, const glm::vec2& b,
 
     // This should be replaced with a method of adaptive accuracy or something
     //return false;
-    return det > 0;
+    //return det > 0;
+    return (abs(det)<EPS?0:(det>0?1:-1));
 }
 
 template<class T>
@@ -79,7 +80,7 @@ __device__ __host__ inline void __swap(T* a, T* b) {
     *b = temp;
 }
 
-__device__ __host__ inline bool inCircle(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c, const glm::vec2& d) {
+__device__ __host__ inline int inCircle(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c, const glm::vec2& d) {
     const double a00 = a.x - d.x;
     const double a01 = a.y - d.y;
     const double a02 = pow2(a00) + pow2(a01);
@@ -90,7 +91,10 @@ __device__ __host__ inline bool inCircle(const glm::vec2& a, const glm::vec2& b,
     const double a21 = c.y - d.y;
     const double a22 = pow2(a20) + pow2(a21);
 
-    return (a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20)) > EPS;
+    double det = (a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20));
+
+    return (abs(det)<EPS?0:(det>0?1:-1));
+    //return (a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20)) > EPS;
 }
 
 __device__ __host__ inline float sdSegment(const glm::vec2& a, const glm::vec2& b, const glm::vec2& p) {
@@ -113,7 +117,7 @@ __device__ __host__ bool isInside(const Triangle* m_t, const HalfEdge* m_he, con
 
 #pragma unroll(3)
     for (int i = 0; i < 3; i++) {
-        if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
+        if (orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p)<=0)return false;
     }
     return true;
 }
@@ -128,7 +132,7 @@ __device__ __host__ bool isInsideInverted(const Triangle* m_t, const HalfEdge* m
 
 #pragma unroll(3)
     for (int i = 0; i < 3; i++) {
-        if (orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p))return false;
+        if (orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 3]], p)>=0)return false;
     }
     return true;
 }
@@ -141,7 +145,7 @@ __device__ __host__ bool isCCW(const Triangle* m_t, const HalfEdge* m_he, const 
     v[1] = m_he[t.he ^ 1].v;
     v[2] = m_he[t.he].op;
 
-    return orient2d(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]]);
+    return orient2d(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]])>=0;
 }
 
 __device__ __host__ bool isCreased(const Triangle* m_t, const HalfEdge* m_he, const glm::vec2* m_pos, const int he_index) {

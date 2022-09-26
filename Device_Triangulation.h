@@ -215,7 +215,7 @@ struct DelaunayCheckFunctor {
 
         // if incircle and gets both triangles exclusively, then we can flip safely.
         // Still, we want to flip afterwards to decrease thread divergence
-        return (t[0] * t[1] > 0) && inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
+        return (t[0] * t[1] > 0) && inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])>0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
     }
 };
 
@@ -293,16 +293,16 @@ bool DeviceTriangulation::moveUntanglingDelaunay(int p_index, glm::vec2 d) { ret
 struct SimpleUntangleCheckFunctor {
     // i-> is edge number. HalfEdges are 2*i and 2*i+1
     inline __device__ int operator()(int i, int* m_helper_t, Triangle* m_t, HalfEdge* m_he, Vertex* m_v, glm::vec2* m_pos) {
-        int he_index = i * 2;
+        int he_index = i*2;
         if (isCreased(m_t, m_he, m_pos, he_index)) {
             int he_upright = he_index;
-            int he_inverted = he_index ^ 1;
+            int he_inverted = he_index^1;
 
             // we assume that he_upright is the upright one, and he_inverted is the inverted one
             if (!isCCW(m_t, m_he, m_pos, m_he[he_upright].t))__swap(&he_upright, &he_inverted);
 
-            glm::vec2 op_upright = m_pos[m_he[m_he[m_he[he_upright].next].next].v];
-            glm::vec2 op_inverted = m_pos[m_he[m_he[m_he[he_inverted].next].next].v];
+            glm::vec2 op_upright = m_pos[m_he[he_upright].op];
+            glm::vec2 op_inverted = m_pos[m_he[he_inverted].op];
 
             int t_index_upright = m_he[he_upright].t;
             int t_index_inverted = m_he[he_inverted].t;
