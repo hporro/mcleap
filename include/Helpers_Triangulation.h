@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 
 __device__ __host__ inline bool operator==( const glm::vec2& a, const glm::vec2& b);
+__device__ __host__ inline double cross(const glm::vec2& a, const glm::vec2& b);
 __device__ __host__ inline int orient2d(const glm::vec2& a, const glm::vec2& b, const glm::vec2& c);
 template<class T>
 __device__ __host__ inline T pow2(const T& a);
@@ -25,6 +26,52 @@ __device__ __host__ bool isInvertedEdge(  const Triangle* m_t, const HalfEdge* m
 // -------------------------------------------
 // functions
 // -------------------------------------------
+
+inline __device__ __host__ double cross(const glm::vec2& a, const glm::vec2& b) {
+    return (a.x * b.y) - (a.y * b.x);
+}
+
+inline __device__ __host__ double d_angle_vectors(const glm::vec2& u, const glm::vec2& v) {
+    return atan2(fabs(cross(u, v)), glm::dot(u, v)); // TODO: Get the double version of this function. For now, the compiler does not find the function atan2
+}
+
+// taken from https://gitlab.com/hporro01/mcleap/-/blob/main/src/kernels.cuh
+///         com_a
+///           +
+///          /|\
+///         / | \
+///        /  |  \
+///       /   |   \
+///      / \  |  / \
+/// op1 + α | | | β + op2
+///      \ /  |  \ /
+///       \   |   /
+///        \  |  /
+///         \ | /
+///          \|/
+///           +
+///         com_b
+/// Computes wether or not we have to flip (either 0 or 1). It is 1 if α+β>PI+EPS
+inline __device__ __host__ int angle_incircle(const glm::vec2* m_pos, const int op1, const int op2, const int com_a, const int com_b) {
+    glm::dvec2 u; // vector
+    glm::dvec2 p, q; // points
+    // get two vectors of the first triangle
+    p = m_pos[op1];
+    q = m_pos[com_a];
+    u = q - p; //! + 5 flop
+    q = m_pos[com_b];
+    double alpha = d_angle_vectors(u, q - p);
+    // the same for other triangle
+    p = m_pos[op2];
+    q = m_pos[com_a];
+    u = q - p;
+    q = m_pos[com_b];
+    double beta = d_angle_vectors(u, q - p);
+
+    return (int)(fabs(alpha + beta) / PI - 0.0000001);
+}
+
+
 
 __device__ __host__ inline bool operator==(const glm::vec2& a, const glm::vec2& b) {
     return (abs(a.x - b.x) < EPS && abs(a.y - b.y) < EPS);

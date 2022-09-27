@@ -12,5 +12,7 @@ set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 set(CMAKE_CUDA_STANDARD 20)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
-add_executable(playground playground.cu "Device_Triangulation.h" "Helpers_Triangulation.h" "Common_Triangulation.h")
-target_include_directories(playground PUBLIC lib/glm lib/gcem/include lib/libmorton/include)
+add_executable(main main/main.cu)
+target_include_directories(main PRIVATE lib/glm lib/gcem/include lib/libmorton/include include)
+
+add_subdirectory(tests)

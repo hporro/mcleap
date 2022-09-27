@@ -4,20 +4,10 @@
 #include <glm/glm.hpp>
 #include <random>
 
-#include <libmorton/morton.h>
 
 #include "Host_Triangulation.h"
 #include "Helpers_Triangulation.h"
 #include "Device_Triangulation.h"
-
-struct cmp_points {
-	bool operator()(glm::vec2& a, glm::vec2& b) {
-		uint_fast32_t am = libmorton::m2D_e_LUT< uint_fast32_t, uint_fast32_t>(a.x, a.y);
-		uint_fast32_t bm = libmorton::m2D_e_LUT< uint_fast32_t, uint_fast32_t>(b.x, b.y);
-		return am < bm;
-		return true;
-	}
-};
 
 int main(int argc, char* argv[]) {
 	int numP = 1000000; // ~8[s] for 10e6, ~2[s] for 10e5 (in Debug mode in the office while doing profiling and diagnostics tool)
@@ -45,16 +35,14 @@ int main(int argc, char* argv[]) {
 	for (int i = 0; i < numP; i++) {
 		h_pos.push_back(glm::vec2(pos_r(rng), pos_r(rng)));
 	}
-	std::sort(h_pos.begin(), h_pos.end(), cmp_points{});
 	for (int i = 0; i < numP; i++) {
 		h_move.push_back(glm::vec2(move_r(rng), move_r(rng)));
 	}
 	cudaMemcpy(d_move, h_move.data(), numP * sizeof(glm::vec2), cudaMemcpyHostToDevice);
 
 	HostTriangulation* ht = new HostTriangulation();
-	for (auto p : h_pos) {
-		ht->addDelaunayPoint(p);
-	}
+	ht->addDelaunayPoints(h_pos);
+	
 	printf("Triangulated (in the host)!!\n");
 
 	int* d_ring_neighbors, * h_ring_neighbors;
@@ -82,21 +70,18 @@ int main(int argc, char* argv[]) {
 		dt.transferToHost();
 		for (int i = 0; i < ht->m_he.size() / 2; i++) {
 			int v[4];
-			HalfEdge he[4];
 			int t[2];
 			t[0] = ht->m_he[i * 2].t;
 			t[1] = ht->m_he[i * 2 ^ 1].t;
 			if (t[0] * t[1] < 0)continue; // if one of them is negative (convex hull of the mesh) doesnt count
-			he[0] = ht->m_he[i * 2];
-			he[1] = ht->m_he[he[0].next];
-			he[2] = ht->m_he[he[1].next];
-			he[3] = ht->m_he[i * 2 ^ 1];
-			v[0] = he[0].v;
-			v[1] = ht->m_he[ht->m_he[ht->m_he[i * 2 ^ 1].next].next].v;
-			v[2] = he[1].v;
-			v[3] = he[2].v;
+			
+			v[0] = ht->m_he[i*2].v;
+			v[1] = ht->m_he[i*2 ^ 1].op;
+			v[2] = ht->m_he[i*2 ^ 1].v;
+			v[3] = ht->m_he[i*2].op;
 		
 			if (inCircle(ht->m_pos[v[0]], ht->m_pos[v[1]], ht->m_pos[v[2]], ht->m_pos[v[3]])>0)non_delaunay_edges_count++;
+			//if (angle_incircle(ht->m_pos.data(), v[3], v[1], v[0], v[2]) > 0)non_delaunay_edges_count++;
 			if (isCreased(ht->m_t.data(), ht->m_he.data(), ht->m_pos.data(), i * 2))creased_edges_count++;
 			if (isInvertedEdge(ht->m_t.data(), ht->m_he.data(), ht->m_pos.data(), i * 2))inverted_edges_count++;
 		

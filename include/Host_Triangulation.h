@@ -8,6 +8,8 @@
 #include <glm/glm.hpp>
 #include <glm/vec2.hpp>
 
+#include <libmorton/morton.h>
+
 #include "Common_Triangulation.h"
 #include "Helpers_Triangulation.h"
 
@@ -46,7 +48,7 @@ struct HostTriangulation {
     // we use as a guess the last triangle where we added a point
     bool sortPointsToAdd(std::vector<glm::vec2> points);
     bool addPoints(std::vector<glm::vec2> points); // inserts with a 3to1 flip many points in the respective triangle
-    bool addDelaunayPoints(std::vector<glm::vec2> points); // addDelaunayPoint for many points.
+    bool addDelaunayPoints(std::vector<glm::vec2>& points); // addDelaunayPoint for many points.
 
     bool isInside(glm::vec2& p, int t_index) {
         Triangle t = m_t[t_index];
@@ -102,7 +104,6 @@ struct HostTriangulation {
 
 // -------------------------------------------
 // Triangulation constructors
-
 HostTriangulation::HostTriangulation() {
 
     m_pos.push_back(glm::vec2(cood_min, cood_min));
@@ -137,7 +138,6 @@ HostTriangulation::HostTriangulation() {
 
 // -------------------------------------------
 // incremental construction
-
 int HostTriangulation::findContainingTriangleIndexCheckingAll(glm::vec2& p) {
     for (int t = 0; t < m_t.size(); t++) {
         if (isInside(p, t))return t;
@@ -210,7 +210,6 @@ bool HostTriangulation::addPoint(glm::vec2 p, int t_index) {
         (int)m_he.size() - 5
     };
 
-
     f1to3(m_t.data(), m_he.data(), m_v.data(), finfo, t_index);
     return true;
 }
@@ -280,6 +279,26 @@ bool HostTriangulation::addDelaunayPoint(glm::vec2 p) {
     return true;
 }
 
+
+// -------------------------------------------
+// Add many points to the triangulation
+// adding many points has the advantage that the triangle used to guess where to add next, is likely to be close if the points are sorted
+// we use as a guess the last triangle where we added a point
+struct cmp_points {
+    bool operator()(glm::vec2& a, glm::vec2& b) {
+        uint_fast32_t am = libmorton::m2D_e_LUT< uint_fast32_t, uint_fast32_t>(a.x, a.y);
+        uint_fast32_t bm = libmorton::m2D_e_LUT< uint_fast32_t, uint_fast32_t>(b.x, b.y);
+        return am < bm;
+        return true;
+    }
+};
+
+bool HostTriangulation::addDelaunayPoints(std::vector<glm::vec2>& points) {
+    std::sort(points.begin(), points.end(), cmp_points{});
+    for (auto p : points)addDelaunayPoint(p);
+    return true;
+}
+
 // -------------------------------------------
 // delonizing
 
@@ -318,7 +337,8 @@ bool HostTriangulation::delonizeEdge(int he_index) {
     //    if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
     //}
 
-    if (inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])>0) {
+    if (inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 0) {
+    //if (angle_incircle(m_pos.data(), v[3], v[1], v[0], v[2]) > 0) {
         f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
         return true;
     }
