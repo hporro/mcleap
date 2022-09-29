@@ -16,3 +16,4 @@ add_executable(main main/main.cu)
 target_include_directories(main PRIVATE lib/glm lib/gcem/include lib/libmorton/include include)
 
 add_subdirectory(tests)
+add_subdirectory(experiments)

@@ -1,0 +1,2 @@
+add_executable(floating_point_predicates_precision floating_point_predicates_precision.cu)
+target_include_directories(floating_point_predicates_precision PRIVATE ../lib/glm ../lib/gcem/include ../lib/libmorton/include ../include)

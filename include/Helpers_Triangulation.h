@@ -11,6 +11,7 @@ __device__ __host__ inline T pow2(const T& a);
 template<class T>
 __device__ __host__ inline void __swap(T*& a, T*& b);
 __device__ __host__ inline int inCircle(  const glm::vec2& a, const glm::vec2& b, const glm::vec2& c, const glm::vec2& d);
+__device__ __host__ inline int angle_incircle(const glm::vec2* m_pos, const int op1, const int op2, const int com_a, const int com_b);
 __device__ __host__ inline float sdSegment(const glm::vec2& a, const glm::vec2& b, const glm::vec2& p);
 
 

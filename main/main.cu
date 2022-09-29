@@ -4,7 +4,6 @@
 #include <glm/glm.hpp>
 #include <random>
 
-
 #include "Host_Triangulation.h"
 #include "Helpers_Triangulation.h"
 #include "Device_Triangulation.h"
@@ -81,7 +80,7 @@ int main(int argc, char* argv[]) {
 			v[3] = ht->m_he[i*2].op;
 		
 			if (inCircle(ht->m_pos[v[0]], ht->m_pos[v[1]], ht->m_pos[v[2]], ht->m_pos[v[3]])>0)non_delaunay_edges_count++;
-			//if (angle_incircle(ht->m_pos.data(), v[3], v[1], v[0], v[2]) > 0)non_delaunay_edges_count++;
+			if (angle_incircle(ht->m_pos.data(), v[3], v[1], v[0], v[2]) > 0)non_delaunay_edges_count++;
 			if (isCreased(ht->m_t.data(), ht->m_he.data(), ht->m_pos.data(), i * 2))creased_edges_count++;
 			if (isInvertedEdge(ht->m_t.data(), ht->m_he.data(), ht->m_pos.data(), i * 2))inverted_edges_count++;
 		
