@@ -12,7 +12,7 @@ set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 set(CMAKE_CUDA_STANDARD 20)
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
-add_executable(main main/main.cu)
+add_executable(main main/main.cu "lib/stb_image_write.h")
 target_include_directories(main PRIVATE lib/glm lib/gcem/include lib/libmorton/include include)
 
 add_subdirectory(tests)

@@ -294,7 +294,7 @@ struct cmp_points {
 };
 
 bool HostTriangulation::addDelaunayPoints(std::vector<glm::vec2>& points) {
-    std::sort(points.begin(), points.end(), cmp_points{});
+    //std::sort(points.begin(), points.end(), cmp_points{});
     for (auto p : points)addDelaunayPoint(p);
     return true;
 }
