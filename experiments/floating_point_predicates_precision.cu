@@ -29,8 +29,16 @@ inline __device__ __host__ double cross(const glm::vec2& a, const glm::vec2& b) 
     return (a.x * b.y) - (a.y * b.x);
 }
 
+inline __device__ __host__ double dot(const glm::vec2& a, const glm::vec2& b) {
+    return (a.x * b.x) + (a.y * b.y);
+}
+
 inline __device__ __host__ double d_angle_vectors(const glm::vec2& u, const glm::vec2& v) {
-    return atan2(cross(u, v), glm::dot(u, v)); // TODO: Get the double version of this function. For now, the compiler does not find the function atan2
+    //int i = blockIdx.x * blockDim.x + threadIdx.x;
+    //if(i==100)printf("i: %d u.x: %f u.y: %f\n", i, u.x, u.y);
+    //if(i==100)printf("i: %d v.x: %f v.y: %f\n", i, v.x, v.y);
+    //if(i==100)printf("i: %d dot: %f cross: %f\n", i, dot(u, v), cross(u, v));
+    return atan2(abs(cross(u, v)), dot(u, v));
 }
 
 
@@ -67,7 +75,7 @@ inline __device__ __host__ int angle_incircle(const glm::vec2& com_a, const glm:
     q = com_b;
     double beta = d_angle_vectors(u, q - p);
     
-    return fabs(alpha + beta) / H_PI - 0.0000001;
+    return fabs(alpha + beta) / H_PI;
 }
 
 
