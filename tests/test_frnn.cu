@@ -17,7 +17,7 @@ void test_frnn(double movement, double bounds, float radius) {
 	std::vector<glm::vec2> h_pos, h_move;
 	glm::vec2* d_move;
 	cudaMalloc((void**)&d_move, numP * sizeof(glm::vec2));
-	std::random_device dev();
+	//std::random_device dev;
 	std::mt19937 rng{ 3 };
 
 	std::uniform_real_distribution<float> pos_r(-bounds, bounds);
@@ -35,9 +35,9 @@ void test_frnn(double movement, double bounds, float radius) {
 	ht->addDelaunayPoints(h_pos);
 
 	int* d_ring_neighbors, * h_ring_neighbors;
-	cudaMalloc((void**)&d_ring_neighbors, numP * max_ring_neighbors * sizeof(int));
+	cudaMalloc((void**)&d_ring_neighbors, ht->m_pos.size() * max_ring_neighbors * sizeof(int));
 
-	int* d_neighbors, * h_neighbors = new int[numP * max_neighbors];
+	int* d_neighbors, * h_neighbors = new int[ht->m_pos.size() * max_neighbors];
 	cudaMalloc((void**)&d_neighbors, numP * max_neighbors * sizeof(int));
 
 	DeviceTriangulation dt(ht);
@@ -47,31 +47,52 @@ void test_frnn(double movement, double bounds, float radius) {
 	dt.getFRNN<max_ring_neighbors, max_neighbors>(radius, d_ring_neighbors, d_neighbors);
 
 	cudaMemcpy(h_neighbors, d_neighbors, numP * max_neighbors * sizeof(int), cudaMemcpyDeviceToHost);
+	cudaDeviceSynchronize();
 
 	float rr = radius * radius;
-	int* real_neighbors = new int[numP];
-	memset(real_neighbors, 0, numP * sizeof(int));
+	int* real_neighbors = new int[ht->m_pos.size() * max_neighbors];
+	//memset(real_neighbors, 0, ht->m_pos.size() * sizeof(int));
+	for (int i = 0; i < ht->m_pos.size() * max_neighbors; i++)real_neighbors[i] = 0;
 
-	std::cout << std::endl;
-	std::cout << h_pos[0].x << " " << h_pos[0].y << std::endl;
-	std::cout << h_pos[1].x << " " << h_pos[1].y;
-	std::cout << std::endl;
-
-	for (int i = 0; i < numP; i++) {
-		for (int j = i+1; j < numP; j++) {
-			if (sqrtDist(h_pos[i], h_pos[j]) <= rr) {
+	for (int i = 0; i < ht->m_pos.size(); i++) {
+		for (int j = i+1; j < ht->m_pos.size(); j++) {
+			if (sqrtDist(ht->m_pos[i], ht->m_pos[j]) <= rr) {
+				//printf("Neighbors: i: %d j: %d\n", i, j);
 				real_neighbors[i]++;
 				real_neighbors[j]++;
+				real_neighbors[ht->m_pos.size() * real_neighbors[i] + i] = j;
+				real_neighbors[ht->m_pos.size() * real_neighbors[j] + j] = i;
 			}
 		}
 	}
 
-	for (int i = 0; i < numP; i++) {
-		std::cout << "Num  neighbors vertex num " << i << ": " << h_neighbors[i+4] << " " << h_neighbors[max_neighbors*1+i+4] << std::endl;
-		std::cout << "Real neighbors vertex num " << i << ": " << real_neighbors[i] << std::endl;
-		ASSERT_EQUALS(real_neighbors[i], h_neighbors[i+4]);
+	//std::cout << "REAL NEIGHBORS" << std::endl;
+	//for (int i = 0; i < ht->m_pos.size(); i++) {
+	//	std::cout << "i: " << i << " num_neighbors: " << real_neighbors[i] << " neighbors: ";
+	//	for (int j = 1; j <= real_neighbors[i]; j++) {
+	//		std::cout << real_neighbors[ht->m_pos.size() * j + i] << " ";
+	//	}
+	//	std::cout << std::endl;
+	//}
+	//
+	//std::cout << "GPU NEIGHBORS" << std::endl;
+	//for (int i = 0; i < ht->m_pos.size(); i++) {
+	//	std::cout << "i: " << i << " num_neighbors: " << h_neighbors[i] << " neighbors: ";
+	//	for (int j = 1; j <= h_neighbors[i]; j++) {
+	//		std::cout << h_neighbors[ht->m_pos.size() * j + i] << " ";
+	//	}
+	//	std::cout << std::endl;
+	//}
+
+	for (int i = 0; i < ht->m_pos.size(); i++) {
+		//std::cout << "GPU  neighbors vertex num " << i << ": " << h_neighbors[i] << std::endl;
+		//std::cout << "Real neighbors vertex num " << i << ": " << real_neighbors[i] << std::endl;
+	
+		// For now, I'm just checking number of neighbors, not if the neighbors are actually the same ones 
+		ASSERT_EQUALS(real_neighbors[i], h_neighbors[i]);
 	}
 
+	delete ht;
 	delete[] h_neighbors;
 	delete[] real_neighbors;
 	cudaFree(d_move);
@@ -80,6 +101,10 @@ void test_frnn(double movement, double bounds, float radius) {
 }
 
 int main(int argc, char* argv[]){
-	RUN((test_frnn<100,10,100>),0.1,100.0,10);
+	RUN((test_frnn<100,10,100>),0.1,100.0,5.0f);
+	RUN((test_frnn<100,10,100>),0.1,100.0,10.0f);
+	RUN((test_frnn<100,10,100>),0.1,100.0,20.0f);
+	RUN((test_frnn<100,10,100>),0.1,100.0,30.0f);
+	RUN((test_frnn<100,10,100>),0.1,100.0,40.0f);
 	return TEST_REPORT();
 }

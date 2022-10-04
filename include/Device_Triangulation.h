@@ -56,9 +56,11 @@ struct DelaunayCheckFunctor {
 
         // if incircle and gets both triangles exclusively, then we can flip safely.
         // Still, we want to flip afterwards to decrease thread divergence
-        return (t[0]>=0) &&  (t[1]>=0) && inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
-        //return (t[0]>=0) &&  (t[1]>=0) && (angle_incircle(m_pos, v[3], v[1], v[0], v[2]) > 0) && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
 
+        return (t[0]>=0) &&  (t[1]>=0) && ((inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])> 0.0000001)) > 0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
+
+        //return (t[0]>=0) &&  (t[1]>=0) && inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
+        //return (t[0]>=0) &&  (t[1]>=0) && (angle_incircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) >= 1.0) && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
     }
 };
 

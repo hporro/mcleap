@@ -34,10 +34,6 @@ inline __device__ __host__ double dot(const glm::vec2& a, const glm::vec2& b) {
 }
 
 inline __device__ __host__ double d_angle_vectors(const glm::vec2& u, const glm::vec2& v) {
-    //int i = blockIdx.x * blockDim.x + threadIdx.x;
-    //if(i==100)printf("i: %d u.x: %f u.y: %f\n", i, u.x, u.y);
-    //if(i==100)printf("i: %d v.x: %f v.y: %f\n", i, v.x, v.y);
-    //if(i==100)printf("i: %d dot: %f cross: %f\n", i, dot(u, v), cross(u, v));
     return atan2(abs(cross(u, v)), dot(u, v));
 }
 
@@ -59,7 +55,7 @@ inline __device__ __host__ double d_angle_vectors(const glm::vec2& u, const glm:
 ///           +
 ///         com_b
 /// Computes wether or not we have to flip (either 0 or 1). It is 1 if α+β>PI+EPS
-inline __device__ __host__ int angle_incircle(const glm::vec2& com_a, const glm::vec2& op1, const glm::vec2& com_b, const glm::vec2& op2) {
+inline __device__ __host__ double angle_incircle(const glm::vec2& com_a, const glm::vec2& op1, const glm::vec2& com_b, const glm::vec2& op2) {
     glm::dvec2 u; // vector
     glm::dvec2 p, q; // points
     // get two vectors of the first triangle
@@ -123,9 +119,9 @@ __global__ void get_image_from_angle_incircle(int resolution, double* org, char*
     const int i = idx / resolution;
     if (idx < resolution*resolution) {
         //printf("idx: %d val: %lf\n", idx, org[(i * resolution + j)]);
-        dest[(i+resolution*j)*3+0] = (org[(i*resolution+j)]>0)*254;
-        dest[(i+resolution*j)*3+1] = (org[(i*resolution+j)]==0)*254;
-        dest[(i+resolution*j)*3+2] = (org[(i*resolution+j)]<0)*254;
+        dest[(i+resolution*j)*3+0] = (org[(i*resolution+j)]>1)*254;
+        dest[(i+resolution*j)*3+1] = (org[(i*resolution+j)]==1)*254;
+        dest[(i+resolution*j)*3+2] = (org[(i*resolution+j)]<1)*254;
     }
 }
 

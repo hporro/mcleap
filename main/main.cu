@@ -25,8 +25,8 @@ int main(int argc, char* argv[]) {
 	std::vector<glm::vec2> h_pos, h_move;
 	glm::vec2* d_move;
 	cudaMalloc((void**)&d_move, numP * sizeof(glm::vec2));
-	std::random_device dev();
-	std::mt19937 rng{ 3 };
+	std::random_device dev;
+	std::mt19937 rng{ dev() };
 
 	std::uniform_real_distribution<float> pos_r(-bounds, bounds);
 	std::uniform_real_distribution<float> move_r(-movement, movement);
@@ -57,12 +57,8 @@ int main(int argc, char* argv[]) {
 	dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
 	dt.getFRNN<max_ring_neighbors,max_neighbors>(70.f,d_ring_neighbors,d_neighbors);
 	for (int i = 0; i < 2; i++) {
-		dt.movePoints(d_move);
-		dt.untangle();
-		dt.delonize();
-		dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
-		dt.getFRNN<max_ring_neighbors, max_neighbors>(70.f, d_ring_neighbors, d_neighbors);
-		int non_delaunay_edges_count = 0;
+		int non_delaunay_edges_count_matrix = 0;
+		int non_delaunay_edges_count_angles = 0;
 		int creased_edges_count = 0;
 		int inverted_edges_count = 0;
 		//checking delaunay condition
@@ -79,17 +75,24 @@ int main(int argc, char* argv[]) {
 			v[2] = ht->m_he[i*2 ^ 1].v;
 			v[3] = ht->m_he[i*2].op;
 		
-			if (inCircle(ht->m_pos[v[0]], ht->m_pos[v[1]], ht->m_pos[v[2]], ht->m_pos[v[3]])>0)non_delaunay_edges_count++;
-			if (angle_incircle(ht->m_pos.data(), v[3], v[1], v[0], v[2]) > 0)non_delaunay_edges_count++;
+			if (inCircle(ht->m_pos[v[0]], ht->m_pos[v[1]], ht->m_pos[v[2]], ht->m_pos[v[3]])>0)non_delaunay_edges_count_matrix++;
+			if (angle_incircle(ht->m_pos[v[0]], ht->m_pos[v[1]], ht->m_pos[v[2]], ht->m_pos[v[3]]) > 1)non_delaunay_edges_count_angles++;
 			if (isCreased(ht->m_t.data(), ht->m_he.data(), ht->m_pos.data(), i * 2))creased_edges_count++;
 			if (isInvertedEdge(ht->m_t.data(), ht->m_he.data(), ht->m_pos.data(), i * 2))inverted_edges_count++;
 		
 		}
 		
 		printf("Number of vertices: %d\n", ht->m_pos.size());
-		printf("Non-delaunay edges: %d\n", non_delaunay_edges_count);
+		printf("Non-delaunay edges matrix: %d\n", non_delaunay_edges_count_matrix);
+		printf("Non-delaunay edges angles: %d\n", non_delaunay_edges_count_angles);
 		printf("Creased edges: %d\n", creased_edges_count);
 		printf("Inverted edges: %d\n", inverted_edges_count);
+
+		dt.movePoints(d_move);
+		dt.untangle();
+		dt.delonize();
+		dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
+		dt.getFRNN<max_ring_neighbors, max_neighbors>(70.f, d_ring_neighbors, d_neighbors);
 	}
 
 	return 0;

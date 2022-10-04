@@ -294,7 +294,7 @@ struct cmp_points {
 };
 
 bool HostTriangulation::addDelaunayPoints(std::vector<glm::vec2>& points) {
-    //std::sort(points.begin(), points.end(), cmp_points{});
+    std::sort(points.begin(), points.end(), cmp_points{});
     for (auto p : points)addDelaunayPoint(p);
     return true;
 }
@@ -338,7 +338,7 @@ bool HostTriangulation::delonizeEdge(int he_index) {
     //}
 
     if (inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 0) {
-    //if (angle_incircle(m_pos.data(), v[3], v[1], v[0], v[2]) > 0) {
+    //if (angle_incircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 1.0000001) {
         f2to2(m_t.data(), m_he.data(), m_v.data(), he_index);
         return true;
     }
