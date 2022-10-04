@@ -51,12 +51,13 @@ __global__ void computeOneRingNeighbors_kernel(const HalfEdge* m_he, const Verte
 
 		int initial_outgoing_he = m_v[i].he;
 
+		//if (i == 185) printf("i: %d outgoing_he: %d outgoing_triangle: %d\n", i, initial_outgoing_he, m_he[initial_outgoing_he].t);
 		//if (m_he[initial_outgoing_he].t == -1)initial_outgoing_he = initial_outgoing_he ^ 1;
 
 		int curr_outgoing_he = initial_outgoing_he;
 
 		do {
-			if (counter+1 >= maxRingSize)return; // TODO: do something about this case
+			if (counter+2 > maxRingSize)break; // TODO: do something about this case
 			ring_neighbors[(counter+1)*n_v+i] = m_he[curr_outgoing_he^1].v;
 			counter++;
 			//if (i < 100 && i>80)printf("i: %d num_ring_neighbors: %d curr_he: %d\n", i, counter, curr_outgoing_he);
@@ -91,6 +92,8 @@ __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const i
 
 		stack[stack_counter++] = i;
 
+		//if (i == 185)printf("i: %d i_x: %f i_y: %f num_ring_neighbors: %d\n", i, i_pos.x, i_pos.y, ring_neighbors[i]);
+
 		while (stack_counter > 0) {
 
 			int curr_neighbor_checking = stack[--stack_counter];
@@ -101,7 +104,7 @@ __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const i
 				int curr_vertex_checking = ring_neighbors[(j+1)*n_v+curr_neighbor_checking];
 				
 				if (curr_vertex_checking == i)continue;
-				//if (i == 1 || i==0)printf("i: %d curr_vertex: %d i_x: %f i_y: %f j_x: %f j_y: %f dist: %f\n", i, curr_vertex_checking, i_pos.x, i_pos.y, m_pos[curr_vertex_checking].x, m_pos[curr_vertex_checking].y, sqrt(sqrtDist(i_pos, m_pos[curr_vertex_checking])));
+				//if (i == 185)printf("i: %d curr_vertex: %d i_x: %f i_y: %f j_x: %f j_y: %f dist: %f\n", i, curr_vertex_checking, i_pos.x, i_pos.y, m_pos[curr_vertex_checking].x, m_pos[curr_vertex_checking].y, sqrt(sqrtDist(i_pos, m_pos[curr_vertex_checking])));
 
 				bool is_already_a_neighbor = false;
 				for (int k = 0; k < stack_counter && !is_already_a_neighbor; k++) {
@@ -115,10 +118,17 @@ __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const i
 				if (!is_already_a_neighbor && (sqrtDist(i_pos, m_pos[curr_vertex_checking]) <= rr)) {
 					neighbors[(neighbors_counter+1)*n_v+i] = curr_vertex_checking;
 					neighbors_counter++;
-					if (neighbors_counter+1>=maxFRNNSize)return; // TODO: manage the neighbors overflow
+					if (neighbors_counter+1>=maxFRNNSize)break; // TODO: manage the neighbors overflow
 					stack[stack_counter++] = curr_vertex_checking;
-					if (stack_counter>= stack_size)return; // TODO: manage the stack overflow
+					if (stack_counter>= stack_size)break; // TODO: manage the stack overflow
+					continue;
 				}
+
+				//if (!is_already_a_neighbor && (sqrtDist(i_pos, m_pos[curr_vertex_checking]) <= rr - 1)) {
+				//	stack[stack_counter++] = curr_vertex_checking;
+				//	if (stack_counter >= stack_size)return; // TODO: manage the stack overflow
+				//	continue;
+				//}
 			}
 		}
 

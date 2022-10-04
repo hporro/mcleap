@@ -68,25 +68,25 @@ void test_frnn(double movement, double bounds, float radius) {
 
 	//std::cout << "REAL NEIGHBORS" << std::endl;
 	//for (int i = 0; i < ht->m_pos.size(); i++) {
-	//	std::cout << "i: " << i << " num_neighbors: " << real_neighbors[i] << " neighbors: ";
+	//	if (i == 185)std::cout << "i: " << i << " num_neighbors: " << real_neighbors[i] << " neighbors: ";
 	//	for (int j = 1; j <= real_neighbors[i]; j++) {
-	//		std::cout << real_neighbors[ht->m_pos.size() * j + i] << " ";
+	//		if (i == 185)std::cout << real_neighbors[ht->m_pos.size() * j + i] << " ";
 	//	}
-	//	std::cout << std::endl;
+	//	if (i == 185)std::cout << std::endl;
 	//}
 	//
 	//std::cout << "GPU NEIGHBORS" << std::endl;
 	//for (int i = 0; i < ht->m_pos.size(); i++) {
-	//	std::cout << "i: " << i << " num_neighbors: " << h_neighbors[i] << " neighbors: ";
+	//	if (i == 185)std::cout << "i: " << i << " num_neighbors: " << h_neighbors[i] << " neighbors: ";
 	//	for (int j = 1; j <= h_neighbors[i]; j++) {
-	//		std::cout << h_neighbors[ht->m_pos.size() * j + i] << " ";
+	//		if (i == 185)std::cout << h_neighbors[ht->m_pos.size() * j + i] << " ";
 	//	}
-	//	std::cout << std::endl;
+	//	if (i == 185)std::cout << std::endl;
 	//}
 
 	for (int i = 0; i < ht->m_pos.size(); i++) {
-		//std::cout << "GPU  neighbors vertex num " << i << ": " << h_neighbors[i] << std::endl;
-		//std::cout << "Real neighbors vertex num " << i << ": " << real_neighbors[i] << std::endl;
+		//if(i==185)std::cout << "GPU  neighbors vertex num " << i << ": " << h_neighbors[i] << std::endl;
+		//if(i==185)std::cout << "Real neighbors vertex num " << i << ": " << real_neighbors[i] << std::endl;
 	
 		// For now, I'm just checking number of neighbors, not if the neighbors are actually the same ones 
 		ASSERT_EQUALS(real_neighbors[i], h_neighbors[i]);
@@ -101,10 +101,10 @@ void test_frnn(double movement, double bounds, float radius) {
 }
 
 int main(int argc, char* argv[]){
-	RUN((test_frnn<100,10,100>),0.1,100.0,5.0f);
-	RUN((test_frnn<100,10,100>),0.1,100.0,10.0f);
-	RUN((test_frnn<100,10,100>),0.1,100.0,20.0f);
-	RUN((test_frnn<100,10,100>),0.1,100.0,30.0f);
-	RUN((test_frnn<100,10,100>),0.1,100.0,40.0f);
+	RUN((test_frnn<1000,20,100>),0.1,1000.0,5.0f);
+	RUN((test_frnn<1000,20,100>),0.1,1000.0,10.0f);
+	RUN((test_frnn<1000,20,100>),0.1,1000.0,20.0f);
+	RUN((test_frnn<1000,20,100>),0.1,1000.0,30.0f);
+	RUN((test_frnn<1000,20,100>),0.1,1000.0,40.0f);
 	return TEST_REPORT();
 }
