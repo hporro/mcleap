@@ -52,23 +52,26 @@ int main(int argc, char* argv[]) {
 	cudaMalloc((void**)&d_neighbors, numP * max_neighbors * sizeof(int));
 
 	DeviceTriangulation dt(ht);
-	dt.untangle();
-	dt.delonize();
-	dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
-	dt.getFRNN<max_ring_neighbors,max_neighbors>(70.f,d_ring_neighbors,d_neighbors);
-	for (int i = 0; i < 2; i++) {
+
+	for (int i = 0; i < 10; i++) {
+		dt.untangle();
+		dt.delonize();
+		dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
+		dt.getFRNN<max_ring_neighbors, max_neighbors>(70.f, d_ring_neighbors, d_neighbors);
+		dt.transferToHost();
+
 		int non_delaunay_edges_count_matrix = 0;
 		int non_delaunay_edges_count_angles = 0;
 		int creased_edges_count = 0;
 		int inverted_edges_count = 0;
 		//checking delaunay condition
-		dt.transferToHost();
 		for (int i = 0; i < ht->m_he.size() / 2; i++) {
 			int v[4];
 			int t[2];
 			t[0] = ht->m_he[i * 2].t;
 			t[1] = ht->m_he[i * 2 ^ 1].t;
-			if (t[0] * t[1] < 0)continue; // if one of them is negative (convex hull of the mesh) doesnt count
+
+			if (t[0]==-1 || t[1]==-1)continue; // if one of them is negative (convex hull of the mesh) doesnt count
 			
 			v[0] = ht->m_he[i*2].v;
 			v[1] = ht->m_he[i*2 ^ 1].op;
@@ -87,12 +90,6 @@ int main(int argc, char* argv[]) {
 		printf("Non-delaunay edges angles: %d\n", non_delaunay_edges_count_angles);
 		printf("Creased edges: %d\n", creased_edges_count);
 		printf("Inverted edges: %d\n", inverted_edges_count);
-
-		dt.movePoints(d_move);
-		dt.untangle();
-		dt.delonize();
-		dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
-		dt.getFRNN<max_ring_neighbors, max_neighbors>(70.f, d_ring_neighbors, d_neighbors);
 	}
 
 	return 0;
