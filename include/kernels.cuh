@@ -58,8 +58,10 @@ __global__ void computeOneRingNeighbors_kernel(const HalfEdge* m_he, const Verte
 
 		do {
 			if (counter+2 > maxRingSize)break; // TODO: do something about this case
-			ring_neighbors[(counter+1)*n_v+i] = m_he[curr_outgoing_he^1].v;
+			
+			ring_neighbors[(counter + 1) * n_v + i] = m_he[curr_outgoing_he^1].v;
 			counter++;
+
 			//if (i < 100 && i>80)printf("i: %d num_ring_neighbors: %d curr_he: %d\n", i, counter, curr_outgoing_he);
 			curr_outgoing_he = PREV_OUTGOING(curr_outgoing_he);
 			//if (i < 100 && i>80)printf("i: %d num_ring_neighbors: %d curr_he: %d\n", i, counter, curr_outgoing_he);

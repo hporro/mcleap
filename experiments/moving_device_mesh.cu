@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 #include <glm/glm.hpp>
 #include <random>
+#include <chrono>
 
 #include "Host_Triangulation.h"
 #include "Helpers_Triangulation.h"
@@ -54,12 +55,31 @@ int main(int argc, char* argv[]) {
 	DeviceTriangulation dt(ht);
 
 	for (int i = 0; i < 10; i++) {
+		auto begin = std::chrono::high_resolution_clock::now();
 		dt.untangle();
 		dt.delonize();
-		dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
-		dt.getFRNN<max_ring_neighbors, max_neighbors>(70.f, d_ring_neighbors, d_neighbors);
-		dt.transferToHost();
+		auto end = std::chrono::high_resolution_clock::now();
+		auto diff = std::chrono::duration<float, std::milli>(end - begin).count();
 
+		printf("Update: %f\n", diff);
+
+		begin = std::chrono::high_resolution_clock::now();
+		dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
+		end = std::chrono::high_resolution_clock::now();
+		diff = std::chrono::duration<float, std::milli>(end - begin).count();
+
+		printf("Ring: %f\n", diff);
+
+		begin = std::chrono::high_resolution_clock::now();
+		dt.getFRNN<max_ring_neighbors, max_neighbors>(70.f, d_ring_neighbors, d_neighbors);
+		end = std::chrono::high_resolution_clock::now();
+		diff = std::chrono::duration<float, std::milli>(end - begin).count();
+
+		printf("Frnn: %f\n", diff);
+
+		dt.transferToHost();
+		
+		
 		int non_delaunay_edges_count_matrix = 0;
 		int non_delaunay_edges_count_angles = 0;
 		int creased_edges_count = 0;

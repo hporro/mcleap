@@ -106,5 +106,6 @@ int main(int argc, char* argv[]){
 	RUN((test_frnn<1000,20,100>),0.1,1000.0,20.0f);
 	RUN((test_frnn<1000,20,100>),0.1,1000.0,30.0f);
 	RUN((test_frnn<1000,20,100>),0.1,1000.0,40.0f);
+	RUN((test_frnn<1000,20,100>),0.1,1000.0,50.0f);
 	return TEST_REPORT();
 }
