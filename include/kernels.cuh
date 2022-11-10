@@ -94,8 +94,6 @@ __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const i
 
 		stack[stack_counter++] = i;
 
-		//if (i == 185)printf("i: %d i_x: %f i_y: %f num_ring_neighbors: %d\n", i, i_pos.x, i_pos.y, ring_neighbors[i]);
-
 		while (stack_counter > 0) {
 
 			int curr_neighbor_checking = stack[--stack_counter];
@@ -106,31 +104,27 @@ __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const i
 				int curr_vertex_checking = ring_neighbors[(j+1)*n_v+curr_neighbor_checking];
 				
 				if (curr_vertex_checking == i)continue;
-				//if (i == 185)printf("i: %d curr_vertex: %d i_x: %f i_y: %f j_x: %f j_y: %f dist: %f\n", i, curr_vertex_checking, i_pos.x, i_pos.y, m_pos[curr_vertex_checking].x, m_pos[curr_vertex_checking].y, sqrt(sqrtDist(i_pos, m_pos[curr_vertex_checking])));
 
 				bool is_already_a_neighbor = false;
-				for (int k = 0; k < stack_counter && !is_already_a_neighbor; k++) {
-					if (stack[k] == curr_vertex_checking)is_already_a_neighbor = true;
-				}
+				// Its faster not to check this for some reason
+				//for (int k = 0; k < stack_counter && !is_already_a_neighbor; k++) {
+				//	if (stack[k] == curr_vertex_checking)is_already_a_neighbor = true;
+				//}
 				for (int k = 0; k < neighbors_counter && !is_already_a_neighbor; k++) {
-					if (neighbors[(k+1)*n_v+i] == curr_vertex_checking)is_already_a_neighbor = true;
+					if (neighbors[(k + 1) * n_v + i] == curr_vertex_checking) {
+						is_already_a_neighbor = true;
+					}
 				}
 				
 				// if this happens, we know the vertex is a neighbor
 				if (!is_already_a_neighbor && (sqrtDist(i_pos, m_pos[curr_vertex_checking]) <= rr)) {
 					neighbors[(neighbors_counter+1)*n_v+i] = curr_vertex_checking;
 					neighbors_counter++;
-					if (neighbors_counter+1>=maxFRNNSize)break; // TODO: manage the neighbors overflow
+					//if (neighbors_counter+1>=maxFRNNSize)break; // TODO: manage the neighbors overflow
 					stack[stack_counter++] = curr_vertex_checking;
-					if (stack_counter>= stack_size)break; // TODO: manage the stack overflow
-					continue;
+					//if (stack_counter>= stack_size)break; // TODO: manage the stack overflow
 				}
 
-				//if (!is_already_a_neighbor && (sqrtDist(i_pos, m_pos[curr_vertex_checking]) <= rr - 1)) {
-				//	stack[stack_counter++] = curr_vertex_checking;
-				//	if (stack_counter >= stack_size)return; // TODO: manage the stack overflow
-				//	continue;
-				//}
 			}
 		}
 
