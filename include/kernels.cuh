@@ -81,6 +81,7 @@ __device__ __host__ float sqrtDist(const glm::vec2& a, const glm::vec2& b) {
 	return pow2(a.x-b.x) + pow2(a.y-b.y);
 }
 
+
 // n_he -> number of full edges
 template<int maxRingSize, int maxFRNNSize>
 __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const int* ring_neighbors, int* neighbors, float rr) {
@@ -101,8 +102,8 @@ __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const i
 			// we start checking all the neighbors of the vertex we know is inside the FRNN
 			for (int j = 0; j < ring_neighbors[curr_neighbor_checking]; j++) {
 
-				int curr_vertex_checking = ring_neighbors[(j+1)*n_v+curr_neighbor_checking];
-				
+				int curr_vertex_checking = ring_neighbors[(j + 1) * n_v + curr_neighbor_checking];
+
 				if (curr_vertex_checking == i)continue;
 
 				bool is_already_a_neighbor = false;
@@ -115,10 +116,10 @@ __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const i
 						is_already_a_neighbor = true;
 					}
 				}
-				
+
 				// if this happens, we know the vertex is a neighbor
 				if (!is_already_a_neighbor && (sqrtDist(i_pos, m_pos[curr_vertex_checking]) <= rr)) {
-					neighbors[(neighbors_counter+1)*n_v+i] = curr_vertex_checking;
+					neighbors[(neighbors_counter + 1) * n_v + i] = curr_vertex_checking;
 					neighbors_counter++;
 					//if (neighbors_counter+1>=maxFRNNSize)break; // TODO: manage the neighbors overflow
 					stack[stack_counter++] = curr_vertex_checking;
@@ -133,60 +134,3 @@ __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const i
 		neighbors[i] = neighbors_counter;
 	}
 }
-
-//#define STACK_SIZE 64
-
-//template<int maxRingSize, int maxFRNNSize>
-//__global__ void computeNeighbors_var_kernel(const glm::vec2* m_pos, int n_v, const int* ring_neighbors, int* neighbors, float rr) {
-//	const int block_id = blockIdx.x * blockDim.x;
-//	const int thread_id = threadIdx.x;
-//
-//	__shared__ int stack[STACK_SIZE];
-//	__shared__ int stack_counter;
-//	__shared__ int neighbors_counter;
-//
-//
-//	while (block_id < n_v) {
-//		glm::vec2 i_pos = m_pos[i];
-//
-//		if(thread_id==0)stack[0] = i;
-//
-//		while (stack_counter > 0) {
-//			int curr_neighbor_checking = stack[--stack_counter];
-//
-//			//if (i == 90)printf("i: %d stack_size: %d in_the_stack_neighbor: %d num_star: %d\n", i, stack_counter, curr_neighbor_checking, ring_neighbors[curr_neighbor_checking]);
-//
-//			// we start checking all the neighbors of the vertex we know is inside the FRNN
-//			for (int j = 0; j < ring_neighbors[curr_neighbor_checking]; j++) {
-//
-//				int curr_vertex_checking = ring_neighbors[(j + 1) * n_v + curr_neighbor_checking];
-//				if (curr_vertex_checking == i)continue;
-//
-//				//if (i == 90)printf("i: %d num_neighbors: %d curr_vertex: %d dist: %f r: %f\n", i, neighbors_counter, curr_vertex_checking, sqrt(sqrtDist(i_pos, m_pos[curr_vertex_checking])), sqrt(rr));
-//
-//				bool is_already_a_neighbor = false;
-//				for (int k = 0; k < stack_counter && !is_already_a_neighbor; k++) {
-//					if (stack[k] == curr_vertex_checking)is_already_a_neighbor = true;
-//				}
-//				for (int k = 0; k < neighbors_counter && !is_already_a_neighbor; k++) {
-//					if (neighbors[(k + 1) * n_v + i] == curr_vertex_checking)is_already_a_neighbor = true;
-//				}
-//
-//				// if this happens, we know the vertex is a neighbor
-//				if (!is_already_a_neighbor && (sqrtDist(i_pos, m_pos[curr_vertex_checking]) <= rr)) {
-//					neighbors[(neighbors_counter + 1) * n_v + i] = curr_vertex_checking;
-//					neighbors_counter++;
-//					if (neighbors_counter + 1 >= maxFRNNSize)return; // TODO: manage the neighbors overflow
-//					stack[stack_counter++] = curr_vertex_checking;
-//					if (stack_counter >= STACK_SIZE)return; // TODO: manage the stack overflow
-//				}
-//			}
-//		}
-//
-//		__syncthreads();
-//
-//		
-//		//if(i == 90)printf("i: %d num_neighbors: %d\n",i,neighbors_counter);
-//	}
-//	if(thread_id==0)neighbors[i] = neighbors_counter;
-//}

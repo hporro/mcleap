@@ -411,15 +411,6 @@ bool DeviceTriangulation::getFRNN(float r, int* ring_neighbors, int* neighbors) 
     return true;
 }
 
-//template<int maxRingSize, int maxFRNNSize>
-//bool DeviceTriangulation::getFRNN_var(float r, int* ring_neighbors, int* neighbors) {
-//    dim3 dimBlock(blocksize);
-//    dim3 dimGrid((m_v_size + blocksize - 1) / dimBlock.x);
-//    computeNeighbors_kernel<maxRingSize, maxFRNNSize> << <dimGrid, dimBlock >> > (m_pos, m_v_size, ring_neighbors, neighbors, pow2(r));
-//    cudaDeviceSynchronize();
-//    return true;
-//}
-
 // -------------------------------------------
 // Experimental operations
 __device__ __host__ bool DeviceTriangulation::swapVertices(int v0_index, int v1_index) {
