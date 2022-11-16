@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Common_Triangulation.h"
+#include <cooperative_groups.h>
+namespace cg = cooperative_groups;
 
 // Functor is supposed to output 0 if not and 1 if yes
 template<class PredicateFunctor, typename... Args>
@@ -85,52 +87,78 @@ __device__ __host__ float sqrtDist(const glm::vec2& a, const glm::vec2& b) {
 // n_he -> number of full edges
 template<int maxRingSize, int maxFRNNSize>
 __global__ void computeNeighbors_kernel(const glm::vec2* m_pos, int n_v, const int* ring_neighbors, int* neighbors, float rr) {
-	const int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < n_v) {
-		glm::vec2 i_pos = m_pos[i];
+	//const int i = blockIdx.x * blockDim.x + threadIdx.x;
+	const int v_i = blockIdx.x;
+	if (v_i < n_v) {
+		glm::vec2 i_pos = m_pos[v_i];
 		constexpr int stack_size = 64;
-		int stack[stack_size];
-		int stack_counter = 0;
-		int neighbors_counter = 0;
+		__shared__ int stack[stack_size];
+		__shared__ int stack_counter, neighbors_counter;
+		__shared__ int doing_work;
 
-		stack[stack_counter++] = i;
-
-		while (stack_counter > 0) {
-
-			int curr_neighbor_checking = stack[--stack_counter];
-
-			// we start checking all the neighbors of the vertex we know is inside the FRNN
-			for (int j = 0; j < ring_neighbors[curr_neighbor_checking]; j++) {
-
-				int curr_vertex_checking = ring_neighbors[(j + 1) * n_v + curr_neighbor_checking];
-
-				if (curr_vertex_checking == i)continue;
-
-				bool is_already_a_neighbor = false;
-				// Its faster not to check this for some reason
-				//for (int k = 0; k < stack_counter && !is_already_a_neighbor; k++) {
-				//	if (stack[k] == curr_vertex_checking)is_already_a_neighbor = true;
-				//}
-				for (int k = 0; k < neighbors_counter && !is_already_a_neighbor; k++) {
-					if (neighbors[(k + 1) * n_v + i] == curr_vertex_checking) {
-						is_already_a_neighbor = true;
-					}
-				}
-
-				// if this happens, we know the vertex is a neighbor
-				if (!is_already_a_neighbor && (sqrtDist(i_pos, m_pos[curr_vertex_checking]) <= rr)) {
-					neighbors[(neighbors_counter + 1) * n_v + i] = curr_vertex_checking;
-					neighbors_counter++;
-					//if (neighbors_counter+1>=maxFRNNSize)break; // TODO: manage the neighbors overflow
-					stack[stack_counter++] = curr_vertex_checking;
-					//if (stack_counter>= stack_size)break; // TODO: manage the stack overflow
-				}
-
-			}
+		if (threadIdx.x == 0) {
+			stack_counter = 0;
+			neighbors_counter = 0;
+			doing_work = 0;
+			stack[stack_counter++] = v_i;
 		}
 
 		__syncthreads();
 
-		neighbors[i] = neighbors_counter;
+		do{
+
+			//int curr_neighbor_checking = stack[--stack_counter];
+			
+			int curr_neighbor_checking = (threadIdx.x < stack_counter ? stack[stack_counter - threadIdx.x - 1] : -1);
+			if (threadIdx.x == 0) {
+				doing_work = (stack_counter <= blockDim.x ? stack_counter : stack_counter - blockDim.x);
+				stack_counter -= doing_work;
+			}
+
+			__syncthreads();
+
+			// we start checking all the neighbors of the vertex we know is inside the FRNN
+			if(curr_neighbor_checking!=-1) {
+				cg::coalesced_group active = coalesced_group(__activemask());
+
+				for (int j = 0; j < ring_neighbors[curr_neighbor_checking]; j++) {
+					active = cg::coalesced_threads();
+
+					bool is_already_a_neighbor = false;
+					int curr_vertex_checking = ring_neighbors[(j + 1) * n_v + curr_neighbor_checking];
+					if (curr_vertex_checking == v_i)is_already_a_neighbor = true;
+
+					// Its faster not to check this for some reason
+					//for (int k = 0; k < stack_counter && !is_already_a_neighbor; k++) {
+					//	if (stack[k] == curr_vertex_checking)is_already_a_neighbor = true;
+					//}
+					active.sync();
+
+					for (int k = 0; k < neighbors_counter && !is_already_a_neighbor; k++) {
+						if (neighbors[(k + 1) * n_v + v_i] == curr_vertex_checking) {
+							is_already_a_neighbor = true;
+						}
+					}
+
+					active.sync();
+					// if this happens, we know the vertex is a neighbor
+					if (!is_already_a_neighbor && (sqrtDist(i_pos, m_pos[curr_vertex_checking]) <= rr)) {
+						neighbors[(neighbors_counter + 1) * n_v + v_i] = curr_vertex_checking;
+						neighbors_counter++;
+						//if (neighbors_counter+1>=maxFRNNSize)break; // TODO: manage the neighbors overflow
+						stack[stack_counter++] = curr_vertex_checking;
+						//if (stack_counter>= stack_size)break; // TODO: manage the stack overflow
+					}
+					active.sync();
+				}
+			}
+
+			__syncthreads();
+
+		} while (stack_counter > 0);
+
+		__syncthreads();
+		if(threadIdx.x==0)
+			neighbors[v_i] = neighbors_counter;
 	}
 }

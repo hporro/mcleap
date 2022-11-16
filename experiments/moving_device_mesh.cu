@@ -61,21 +61,21 @@ int main(int argc, char* argv[]) {
 		auto end = std::chrono::high_resolution_clock::now();
 		auto diff = std::chrono::duration<float, std::milli>(end - begin).count();
 
-		//printf("Update: %f\n", diff);
+		printf("Update: %f\n", diff);
 
 		begin = std::chrono::high_resolution_clock::now();
 		dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 
-		//printf("Ring: %f\n", diff);
+		printf("Ring: %f\n", diff);
 
 		begin = std::chrono::high_resolution_clock::now();
 		dt.getFRNN<max_ring_neighbors, max_neighbors>(70.f, d_ring_neighbors, d_neighbors);
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 
-		//printf("Frnn: %f\n", diff);
+		printf("Frnn: %f\n", diff);
 
 		dt.transferToHost();
 		

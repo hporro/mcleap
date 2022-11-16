@@ -405,7 +405,7 @@ bool DeviceTriangulation::oneRing(int* ring_neighbors) {
 template<int maxRingSize, int maxFRNNSize>
 bool DeviceTriangulation::getFRNN(float r, int* ring_neighbors, int* neighbors) {
     dim3 dimBlock(blocksize);
-    dim3 dimGrid((m_v_size + blocksize - 1) / dimBlock.x);
+    dim3 dimGrid(m_v_size);
     computeNeighbors_kernel<maxRingSize,maxFRNNSize> <<<dimGrid, dimBlock >>> (m_pos, m_v_size, ring_neighbors, neighbors, pow2(r));
     cudaDeviceSynchronize();
     return true;
