@@ -51,10 +51,13 @@ int main(int argc, char* argv[]) {
 	int* d_neighbors, * h_neighbors;
 	constexpr int max_neighbors = 200;
 	cudaMalloc((void**)&d_neighbors, numP * max_neighbors * sizeof(int));
+	h_neighbors = new int[numP * max_neighbors];
 
 	DeviceTriangulation dt(ht);
 
-	for (int i = 0; i < 1; i++) {
+	for (int i = 0; i < 3; i++) {
+		printf("\n");
+
 		auto begin = std::chrono::high_resolution_clock::now();
 		dt.untangle();
 		dt.delonize();
@@ -78,8 +81,15 @@ int main(int argc, char* argv[]) {
 		printf("Frnn: %f\n", diff);
 
 		dt.transferToHost();
-		
-		
+		cudaMemcpy(h_neighbors, d_neighbors, numP * max_neighbors * sizeof(int), cudaMemcpyDeviceToHost);
+		cudaDeviceSynchronize();
+
+		float avg_num = 0;
+		for (int i = 0; i < numP; i++) {
+			avg_num += h_neighbors[i];
+		}
+		avg_num /= numP;
+
 		int non_delaunay_edges_count_matrix = 0;
 		int non_delaunay_edges_count_angles = 0;
 		int creased_edges_count = 0;
@@ -105,12 +115,15 @@ int main(int argc, char* argv[]) {
 		
 		}
 		
+		printf("Average number of neighbors: %f\n", avg_num);
 		printf("Number of vertices: %d\n", ht->m_pos.size());
 		printf("Non-delaunay edges matrix: %d\n", non_delaunay_edges_count_matrix);
 		printf("Non-delaunay edges angles: %d\n", non_delaunay_edges_count_angles);
 		printf("Creased edges: %d\n", creased_edges_count);
 		printf("Inverted edges: %d\n", inverted_edges_count);
 	}
+
+	delete[] h_neighbors;
 
 	return 0;
 }
