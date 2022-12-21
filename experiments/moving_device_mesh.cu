@@ -53,6 +53,10 @@ int main(int argc, char* argv[]) {
 	cudaMalloc((void**)&d_neighbors, numP * max_neighbors * sizeof(int));
 	h_neighbors = new int[numP * max_neighbors];
 
+	int* d_closest_neighbors, *h_closest_neighbors;
+	cudaMalloc((void**)&d_closest_neighbors, 4+numP * sizeof(int));
+	h_closest_neighbors = new int[4+numP];
+
 	DeviceTriangulation dt(ht);
 
 	for (int i = 0; i < 3; i++) {
@@ -72,6 +76,14 @@ int main(int argc, char* argv[]) {
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 
 		printf("Ring: %f\n", diff);
+
+		begin = std::chrono::high_resolution_clock::now();
+		dt.closestNeighbors <max_ring_neighbors>(d_ring_neighbors, d_closest_neighbors);
+		end = std::chrono::high_resolution_clock::now();
+		diff = std::chrono::duration<float, std::milli>(end - begin).count();
+
+		printf("Closest neighbor: %f\n", diff);
+
 
 		begin = std::chrono::high_resolution_clock::now();
 		dt.getFRNN<max_ring_neighbors, max_neighbors>(70.f, d_ring_neighbors, d_neighbors);

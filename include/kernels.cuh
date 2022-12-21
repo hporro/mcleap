@@ -83,6 +83,24 @@ __device__ __host__ float sqrtDist(const glm::vec2& a, const glm::vec2& b) {
 	return pow2(a.x-b.x) + pow2(a.y-b.y);
 }
 
+template<int maxRingSize>
+__global__ void compute_closestNeighbors_kernel(const glm::vec2* m_pos, int n_v, const int* ring_neighbors, int* closest_neighbors) {
+	const int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < n_v) {
+		glm::vec2 i_pos = m_pos[i];
+		float closest_dist = sqrtDist(i_pos, m_pos[ring_neighbors[n_v + i]]);
+		int closest_neighbor = ring_neighbors[n_v + i];
+		for (int j = 1; j < ring_neighbors[i]; j++) {
+			float curr_dist = sqrtDist(i_pos, m_pos[ring_neighbors[(j + 1) * n_v + i]]);
+			if (curr_dist < closest_dist) {
+				closest_dist = curr_dist;
+				closest_neighbor = ring_neighbors[(j + 1) * n_v + i];
+			}
+		}
+		__syncthreads();
+		closest_neighbors[i] = closest_neighbor;
+	}
+}
 
 // n_he -> number of full edges
 template<int maxRingSize, int maxFRNNSize>

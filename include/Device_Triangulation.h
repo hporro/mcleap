@@ -193,6 +193,8 @@ struct DeviceTriangulation {
     // Neighborhood searching
     template<int maxRingSize>
     bool oneRing(int* ring_neighbors);
+    template<int maxRingSize>
+    bool closestNeighbors(int* ring_neighbors, int* closest_neighbors);
     template<int maxRingSize, int maxFRNNSize>
     bool getFRNN(float r, int* ring_neighbors, int* neighbors);
 
@@ -398,6 +400,15 @@ bool DeviceTriangulation::oneRing(int* ring_neighbors) {
     dim3 dimBlock(blocksize);
     dim3 dimGrid((m_v_size + blocksize - 1) / dimBlock.x);
     computeOneRingNeighbors_kernel<maxRingSize><<<dimGrid, dimBlock>>>(m_he, m_v, m_v_size, ring_neighbors);
+    cudaDeviceSynchronize();
+    return true;
+}
+
+template<int maxRingSize>
+bool DeviceTriangulation::closestNeighbors(int* ring_neighbors, int* closest_neighbors) {
+    dim3 dimBlock(blocksize);
+    dim3 dimGrid((m_v_size + blocksize - 1) / dimBlock.x);
+    compute_closestNeighbors_kernel<maxRingSize> << <dimGrid, dimBlock >> > (m_pos, m_v_size, ring_neighbors, closest_neighbors);
     cudaDeviceSynchronize();
     return true;
 }
