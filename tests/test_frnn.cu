@@ -38,15 +38,17 @@ void test_frnn(double movement, double bounds, float radius) {
 	cudaMalloc((void**)&d_ring_neighbors, ht->m_pos.size() * max_ring_neighbors * sizeof(int));
 
 	int* d_neighbors, * h_neighbors = new int[ht->m_pos.size() * max_neighbors];
-	cudaMalloc((void**)&d_neighbors, numP * max_neighbors * sizeof(int));
+	cudaMalloc((void**)&d_neighbors, (numP+4) * max_neighbors * sizeof(int));
 
 	DeviceTriangulation dt(ht);
 	//dt.untangle();
 	//dt.delonize();
 	dt.oneRing<max_ring_neighbors>(d_ring_neighbors);
 	dt.getFRNN<max_ring_neighbors, max_neighbors>(radius, d_ring_neighbors, d_neighbors);
+	//dt.oneRing2<max_ring_neighbors>(d_ring_neighbors);
+	//dt.getFRNN2<max_ring_neighbors, max_neighbors>(radius, d_ring_neighbors, d_neighbors);
 
-	cudaMemcpy(h_neighbors, d_neighbors, numP * max_neighbors * sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(h_neighbors, d_neighbors, (numP+4) * max_neighbors * sizeof(int), cudaMemcpyDeviceToHost);
 	cudaDeviceSynchronize();
 
 	float rr = radius * radius;
@@ -90,6 +92,7 @@ void test_frnn(double movement, double bounds, float radius) {
 	
 		// For now, I'm just checking number of neighbors, not if the neighbors are actually the same ones 
 		ASSERT_EQUALS(real_neighbors[i], h_neighbors[i]);
+		//ASSERT_EQUALS(real_neighbors[i], h_neighbors[i * max_neighbors]); // -> in order to check oneRing2 and getFRNN2
 	}
 
 	delete ht;

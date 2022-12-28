@@ -47,19 +47,10 @@ struct DelaunayCheckFunctor {
         v[2] = he[1].v;
         v[3] = he[0].op;
 
-        //if (i*2 < 100 && i*2>50)printf("i: %d v[0]: %d v[1]: %d v[2]: %d v[3]: %d incircle: %d \n", i, v[0], v[1], v[2], v[3], inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]));
-
-        //for (int i = 0; i < 4; i++) {
-        //    //check convexity of the bicell
-        //    if (!orient2d(m_pos[v[i]], m_pos[v[(i + 1) % 4]], m_pos[v[(i + 2) % 4]]))return false;
-        //}
-
         // if incircle and gets both triangles exclusively, then we can flip safely.
         // Still, we want to flip afterwards to decrease thread divergence
 
         return (t[0]>=0) &&  (t[1]>=0) && ((inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]])> 0.0000001)) > 0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
-
-        //return (t[0]>=0) &&  (t[1]>=0) && inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
         //return (t[0]>=0) &&  (t[1]>=0) && (angle_incircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) >= 1.0) && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1);
     }
 };
@@ -175,6 +166,7 @@ struct DeviceTriangulation {
     // -------------------------------------------
     // delonizing
     bool delonize();
+    bool delonize2();
 
     // -------------------------------------------
     // Moving points
@@ -188,15 +180,33 @@ struct DeviceTriangulation {
     // Untangling Mesh
     // based on Shewchuk's untangling
     bool untangle();
+    bool untangle2();
 
     // -------------------------------------------
     // Neighborhood searching
+    // neighbor indexing like:
+    // 0-1 means first neighbor of vertex 0
+    // |-------------------------------------------|
+    // |0-1|1-1|2-1|3-1|...|0-2|1-2|2-2|3-2|...|N-M|
+    // |-------------------------------------------|
     template<int maxRingSize>
     bool oneRing(int* ring_neighbors);
     template<int maxRingSize>
     bool closestNeighbors(int* ring_neighbors, int* closest_neighbors);
     template<int maxRingSize, int maxFRNNSize>
     bool getFRNN(float r, int* ring_neighbors, int* neighbors);
+    template<int maxRingSize>
+    // just different indexing scheme of the neighbors
+    // neighbor indexing like:
+    // 0-1 means first neighbor of vertex 0
+    // |-------------------------------------------|
+    // |0-1|0-2|0-3|0-4|...|1-1|1-2|1-3|1-4|...|N-M|
+    // |-------------------------------------------|
+    bool oneRing2(int* ring_neighbors);
+    template<int maxRingSize>
+    bool closestNeighbors2(int* ring_neighbors, int* closest_neighbors);
+    template<int maxRingSize, int maxFRNNSize>
+    bool getFRNN2(float r, int* ring_neighbors, int* neighbors);
 
     // -------------------------------------------
     // Experimental operations
@@ -296,6 +306,34 @@ int DeviceTriangulation::findContainingTriangleIndexWalking(glm::vec2 p, int t_i
 // -------------------------------------------
 // delonizing
 
+bool DeviceTriangulation::delonize2() {
+    flips_done[0] = 0;
+
+    dim3 dimBlock(blocksize);
+    dim3 dimGrid((m_he_size / 2 + blocksize - 1) / dimBlock.x);
+
+
+    thrust::device_ptr<int> dev_helper_he(m_helper_he);
+
+    //printf("Total number of edges: %d\n", m_he_size / 2);
+
+    do {
+        cudaMemset(m_helper_he, 0, m_he_size * sizeof(int));
+        cudaMemset(m_helper_t, -1, m_t_size * sizeof(int));
+        cudaMemset(m_flag, 0, sizeof(int));
+        cudaDeviceSynchronize();
+
+        flip_delaunay_kernel<<<dimGrid,dimBlock>>>(m_pos, m_helper_t, m_he_size/2, m_t, m_he, m_v, m_flag);
+        cudaDeviceSynchronize();
+
+        cudaMemcpy(flips_done, m_flag, sizeof(int), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+        //printf("Flips done [delonize]: %d\n", flips_done[0]);
+    } while (flips_done[0] > 0);
+
+    return true;
+}
+
 bool DeviceTriangulation::delonize() {
 
     flips_done[0] = 0;
@@ -392,6 +430,34 @@ bool DeviceTriangulation::untangle() {
     return true;
 }
 
+bool DeviceTriangulation::untangle2() {
+    //m_flag stores whether or not theres something to do, and how much flips can be made in this iteration
+    flips_done[0] = 0;
+
+    dim3 dimBlock(blocksize);
+    dim3 dimGrid((m_he_size / 2 + blocksize - 1) / dimBlock.x);
+
+    thrust::device_ptr<int> dev_helper_he(m_helper_he);
+
+    //printf("Total number of edges: %d\n", m_he_size / 2);
+
+    do {
+        cudaMemset(m_helper_he, 0, m_he_size * sizeof(int));
+        cudaMemset(m_helper_t, -1, m_t_size * sizeof(int));
+        cudaMemset(m_flag, 0, sizeof(int));
+        cudaDeviceSynchronize();
+
+        fix_triangles_kernel << <dimGrid, dimBlock >> > (m_pos, m_helper_he, m_he_size / 2, m_t, m_he, m_v, m_flag);
+        cudaDeviceSynchronize();
+
+        cudaMemcpy(flips_done, m_flag, sizeof(int), cudaMemcpyDeviceToHost);
+        cudaDeviceSynchronize();
+        //printf("Flips done [untangle]: %d\n", flips_done[0]);
+    } while (flips_done[0] > 0);
+
+    return true;
+}
+
 
 // -------------------------------------------
 // Neighborhood searching
@@ -400,6 +466,15 @@ bool DeviceTriangulation::oneRing(int* ring_neighbors) {
     dim3 dimBlock(blocksize);
     dim3 dimGrid((m_v_size + blocksize - 1) / dimBlock.x);
     computeOneRingNeighbors_kernel<maxRingSize><<<dimGrid, dimBlock>>>(m_he, m_v, m_v_size, ring_neighbors);
+    cudaDeviceSynchronize();
+    return true;
+}
+
+template<int maxRingSize>
+bool DeviceTriangulation::oneRing2(int* ring_neighbors) {
+    dim3 dimBlock(blocksize);
+    dim3 dimGrid((m_v_size + blocksize - 1) / dimBlock.x);
+    computeOneRingNeighbors_kernel2<maxRingSize> << <dimGrid, dimBlock >> > (m_he, m_v, m_v_size, ring_neighbors);
     cudaDeviceSynchronize();
     return true;
 }
@@ -417,7 +492,25 @@ template<int maxRingSize, int maxFRNNSize>
 bool DeviceTriangulation::getFRNN(float r, int* ring_neighbors, int* neighbors) {
     dim3 dimBlock(blocksize);
     dim3 dimGrid(m_v_size);
-    computeNeighbors_kernel<maxRingSize,maxFRNNSize> <<<dimGrid, dimBlock >>> (m_pos, m_v_size, ring_neighbors, neighbors, pow2(r));
+    computeNeighbors_kernel<maxRingSize, maxFRNNSize> << <dimGrid, dimBlock >> > (m_pos, m_v_size, ring_neighbors, neighbors, pow2(r));
+    cudaDeviceSynchronize();
+    return true;
+}
+
+template<int maxRingSize>
+bool DeviceTriangulation::closestNeighbors2(int* ring_neighbors, int* closest_neighbors) {
+    dim3 dimBlock(blocksize);
+    dim3 dimGrid((m_v_size + blocksize - 1) / dimBlock.x);
+    compute_closestNeighbors_kernel2<maxRingSize> << <dimGrid, dimBlock >> > (m_pos, m_v_size, ring_neighbors, closest_neighbors);
+    cudaDeviceSynchronize();
+    return true;
+}
+
+template<int maxRingSize, int maxFRNNSize>
+bool DeviceTriangulation::getFRNN2(float r, int* ring_neighbors, int* neighbors) {
+    dim3 dimBlock(blocksize);
+    dim3 dimGrid(m_v_size);
+    computeNeighbors_kernel2<maxRingSize, maxFRNNSize> << <dimGrid, dimBlock >> > (m_pos, m_v_size, ring_neighbors, neighbors, pow2(r));
     cudaDeviceSynchronize();
     return true;
 }
