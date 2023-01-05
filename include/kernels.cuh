@@ -37,11 +37,17 @@ __global__ void doGivenCompacted(int* compacted, int* flag, MutatingFunctor f , 
 
 __global__ void move_points_kernel(int n, glm::vec2* pos, glm::vec2* d) {
 	const int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < n) {
-		pos[i]+=d[i];
+	if (i < n && i >= 4) { // to not move 4 bounding points
+		pos[i] += d[i];
 	}
 }
 
+__global__ void integrate_move_points_kernel(int n, glm::vec2* pos, float* dt, glm::vec2* v) {
+	const int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < n && i >= 4) { // to not move 4 bounding points
+		pos[i] += v[i] * dt[i];
+	}
+}
 
 #define PREV_OUTGOING(he_index) m_he[he_index^1].next
 // n_he -> number of full edges
@@ -283,7 +289,8 @@ __global__ void flip_delaunay_kernel(const glm::vec2* m_pos, int* m_helper_t, in
 		v[2] = he[1].v;
 		v[3] = he[0].op;
 
-		bool flip = ((t[0] >= 0) && (t[1] >= 0) && ((inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 0.0000001)) > 0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1));
+		//bool flip = ((t[0] >= 0) && (t[1] >= 0) && ((inCircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 0.0000001)) > 0 && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1));
+		bool flip = ((t[0]>=0) &&  (t[1]>=0) && (angle_incircle(m_pos[v[0]], m_pos[v[1]], m_pos[v[2]], m_pos[v[3]]) > 1.00001) && (atomicExch(&m_helper_t[t[0]], i) == -1) && (atomicExch(&m_helper_t[t[1]], i) == -1));
 
 		if (flip) {
 			f2to2(m_t, m_he, m_v, i * 2);

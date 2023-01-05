@@ -171,6 +171,7 @@ struct DeviceTriangulation {
     // -------------------------------------------
     // Moving points
     bool movePoints(glm::vec2* d); //moves without fixing anything
+    bool integrateMovePoints(float* dt, glm::vec2* v); //moves without fixing anything
     bool moveFlipflop(int p_index, glm::vec2 d); //removes and reinserts a point
     bool moveFlipflopDelaunay(int p_index, glm::vec2 d); //removes and reinserts a point, and then Delonizates
     bool moveUntangling(int p_index, glm::vec2 d); //moves without fixing anything, and then untangles
@@ -379,7 +380,14 @@ bool DeviceTriangulation::delonize() {
 bool DeviceTriangulation::movePoints(glm::vec2* d) {
     dim3 dimBlock(blocksize);
     dim3 dimGrid((m_pos_size + blocksize - 1) / dimBlock.x);
-    move_points_kernel<<<dimGrid, dimBlock>>>(m_pos_size,m_pos,d);
+    move_points_kernel << <dimGrid, dimBlock >> > (m_pos_size, m_pos, d);
+    cudaDeviceSynchronize();
+    return true;
+}
+bool DeviceTriangulation::integrateMovePoints(float* dt, glm::vec2* v) {
+    dim3 dimBlock(blocksize);
+    dim3 dimGrid((m_pos_size + blocksize - 1) / dimBlock.x);
+    integrate_move_points_kernel << <dimGrid, dimBlock >> > (m_pos_size, m_pos, dt, v);
     cudaDeviceSynchronize();
     return true;
 }
@@ -442,7 +450,7 @@ bool DeviceTriangulation::untangle2() {
     //printf("Total number of edges: %d\n", m_he_size / 2);
 
     do {
-        cudaMemset(m_helper_he, 0, m_he_size * sizeof(int));
+        //cudaMemset(m_helper_he, 0, m_he_size * sizeof(int));
         cudaMemset(m_helper_t, -1, m_t_size * sizeof(int));
         cudaMemset(m_flag, 0, sizeof(int));
         cudaDeviceSynchronize();
