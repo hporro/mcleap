@@ -157,11 +157,16 @@ int main(int argc, char* argv[]) {
 
 		begin = std::chrono::high_resolution_clock::now();
 		dt.untangle2();
+		end = std::chrono::high_resolution_clock::now();
+		diff = std::chrono::duration<float, std::milli>(end - begin).count();
+		printf("Delaunay untangle: %f\n", diff);
+
+		begin = std::chrono::high_resolution_clock::now();
 		dt.delonize2();
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 
-		printf("Delaunay Update: %f\n", diff);
+		printf("Delaunay legalize: %f\n", diff);
 
 		printf("Close indexing:\n");
 
