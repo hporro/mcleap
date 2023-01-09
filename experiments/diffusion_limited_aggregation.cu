@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
 	cudaMemcpy(d_dt, h_dt, (4 + numP) * sizeof(float), cudaMemcpyHostToDevice);
 	cudaDeviceSynchronize();
 
-	for (int i = 0; i < 30; i++) {
+	for (int i = 0; i < 100; i++) {
 		printf("\n");
 
 

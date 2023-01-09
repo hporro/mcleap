@@ -343,16 +343,20 @@ __global__ void fix_triangles_kernel(const glm::vec2* m_pos, int* m_helper_t, in
 			// Here there's a possible flip, but you end up with another 2 inverted triangles
 			// This can lead to other flips that untangle the triangulation
 
-
 			// --------------------
 			// E-Step
 			// Case where either triangle is inside the other, but you end up with another 2 inverted triangles (again)
 			// This cannot lead to other flips that untangle the triangulation (that's why this is another case)
+
+			// --------------------
+			// Others
+			*m_flag = -1;
 		}
 
 		if (flip) {
 			f2to2(m_t, m_he, m_v, i * 2);
 			*m_flag = 1;
+			//atomicCAS(m_flag, 0, 1);
 		}
 	}
 }

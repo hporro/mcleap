@@ -460,9 +460,13 @@ bool DeviceTriangulation::untangle2() {
 
         cudaMemcpy(flips_done, m_flag, sizeof(int), cudaMemcpyDeviceToHost);
         cudaDeviceSynchronize();
+        if (flips_done[0] == -1) {
+            printf("couldn't fix everything!!!! going back\n"); 
+            break;
+        }
         //printf("Flips done [untangle]: %d\n", flips_done[0]);
     } while (flips_done[0] > 0);
-
+    if (flips_done[0] == -1)return false;
     return true;
 }
 

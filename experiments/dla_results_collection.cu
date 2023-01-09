@@ -64,7 +64,7 @@ __global__ void check_if_close_diffusion(int n, glm::vec2* m_pos, int* neighbors
 int main(int argc, char* argv[]) {
 	int numP = 1000000; // ~8[s] for 10e6, ~2[s] for 10e5 (in Debug mode in the office while doing profiling and diagnostics tool)
 	double bounds = 10000.0;
-	double movement = 0.005;
+	double movement = 0.0005;
 	constexpr float rad = 10.f;
 	if (argc > 1) {
 		numP = atoi(argv[1]);
@@ -135,6 +135,16 @@ int main(int argc, char* argv[]) {
 	cudaMemcpy(d_dt, h_dt, (4 + numP) * sizeof(float), cudaMemcpyHostToDevice);
 	cudaDeviceSynchronize();
 
+	std::vector<float> grid_update_data;
+	std::vector<float> grid_closest_data;
+	std::vector<float> delaunay_untangle_data;
+	std::vector<float> delaunay_legalize_data;
+	std::vector<float> delaunay_oneRing_data;
+	std::vector<float> delaunay_closest_data;
+	std::vector<float> delaunay_FRNN_data;
+	std::vector<float> integrate_simulation_data;
+	std::vector<float> points_moving_data;
+
 	statistics  stats_grid_update;
 	RunningStat meas_grid_update;
 	statistics  stats_grid_closest_neighbor;
@@ -157,9 +167,8 @@ int main(int argc, char* argv[]) {
 	statistics  stats_points_moving;
 	RunningStat meas_points_moving;
 
-	for (int i = 0; i < 30; i++) {
+	for (int i = 0; i < 1000; i++) {
 		//printf("\n");
-
 
 		cudaMemcpy(d_pos, dt.m_pos, (4 + numP) * sizeof(glm::vec2), cudaMemcpyDeviceToDevice);
 		cudaDeviceSynchronize();
@@ -170,6 +179,7 @@ int main(int argc, char* argv[]) {
 		auto end = std::chrono::high_resolution_clock::now();
 		auto diff = std::chrono::duration<float, std::milli>(end - begin).count();
 		meas_grid_update.Push(diff);
+		grid_update_data.push_back(diff);
 		//printf("Update Grid: %f\n", diff);
 
 		begin = std::chrono::high_resolution_clock::now();
@@ -177,6 +187,7 @@ int main(int argc, char* argv[]) {
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 		meas_grid_closest_neighbor.Push(diff);
+		grid_closest_data.push_back(diff);
 		//printf("Grid Frnn: %f\n", diff);
 
 		begin = std::chrono::high_resolution_clock::now();
@@ -184,6 +195,7 @@ int main(int argc, char* argv[]) {
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 		meas_delaunay_untangle.Push(diff);
+		delaunay_untangle_data.push_back(diff);
 		//printf("Delaunay untangle: %f\n", diff);
 
 		begin = std::chrono::high_resolution_clock::now();
@@ -191,6 +203,7 @@ int main(int argc, char* argv[]) {
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 		meas_delaunay_legalize.Push(diff);
+		delaunay_legalize_data.push_back(diff);
 		//printf("Delaunay legalize: %f\n", diff);
 
 		begin = std::chrono::high_resolution_clock::now();
@@ -198,6 +211,7 @@ int main(int argc, char* argv[]) {
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 		meas_delaunay_oneRing.Push(diff);
+		delaunay_oneRing_data.push_back(diff);
 		//printf("Delaunay Ring: %f\n", diff);
 
 		begin = std::chrono::high_resolution_clock::now();
@@ -205,6 +219,7 @@ int main(int argc, char* argv[]) {
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 		meas_delaunay_closest_neighbor.Push(diff);
+		delaunay_closest_data.push_back(diff);
 		//printf("Delaunay Closest neighbor: %f\n", diff);
 
 		begin = std::chrono::high_resolution_clock::now();
@@ -212,6 +227,7 @@ int main(int argc, char* argv[]) {
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 		meas_delaunay_FRNN.Push(diff);
+		delaunay_FRNN_data.push_back(diff);
 		//printf("Delaunay Frnn: %f\n", diff);
 
 		dt.transferToHost();
@@ -226,6 +242,7 @@ int main(int argc, char* argv[]) {
 		end = std::chrono::high_resolution_clock::now();
 		diff = std::chrono::duration<float, std::milli>(end - begin).count();
 		meas_integrate_simulation.Push(diff);
+		integrate_simulation_data.push_back(diff);
 
 		thrust::device_ptr<float> dt_array = thrust::device_pointer_cast(d_dt);
 		thrust::device_ptr<float> dt_helper_array = thrust::device_pointer_cast(d_dt_helper);
@@ -236,6 +253,7 @@ int main(int argc, char* argv[]) {
 		cudaMemcpy(res, &d_dt_helper[numP + 4 - 1], sizeof(float), cudaMemcpyDeviceToHost);
 		cudaDeviceSynchronize();
 		meas_points_moving.Push(res[0]);
+		points_moving_data.push_back(res[0]);
 		//printf("There's %f particles moving\n", res[0]);
 		delete[] res;
 
@@ -248,6 +266,26 @@ int main(int argc, char* argv[]) {
 	cudaFree(d_dt_helper);
 	cudaFree(d_pos);
 	cudaFree(d_ring_neighbors);
+
+#define PRINTDATA(arr_name) printf("%s = [",#arr_name);for (int i = 0; i < arr_name.size(); i++) {printf("%f, ", arr_name[i]);}printf("]\n");
+	PRINTDATA(grid_update_data);
+	PRINTDATA(grid_closest_data);
+	PRINTDATA(delaunay_untangle_data);
+	PRINTDATA(delaunay_legalize_data);
+	PRINTDATA(delaunay_oneRing_data);
+	PRINTDATA(delaunay_closest_data);
+	PRINTDATA(delaunay_FRNN_data);
+	PRINTDATA(integrate_simulation_data);
+	PRINTDATA(points_moving_data);
+	//std::vector<float> grid_update_data;           
+	//std::vector<float> grid_closest_data;          
+	//std::vector<float> delaunay_untangle_data;    
+	//std::vector<float> delaunay_legalize_data;    
+	//std::vector<float> delaunay_oneRing_data;     
+	//std::vector<float> delaunay_closest_data;     
+	//std::vector<float> delaunay_FRNN_data;        
+	//std::vector<float> integrate_simulation_data;
+	//std::vector<float> points_moving_data;       
 
 	return 0;
 }
