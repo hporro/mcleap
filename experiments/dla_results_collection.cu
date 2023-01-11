@@ -62,8 +62,8 @@ __global__ void check_if_close_diffusion(int n, glm::vec2* m_pos, int* neighbors
 }
 
 int main(int argc, char* argv[]) {
-	int numP = 10000; // ~8[s] for 10e6, ~2[s] for 10e5 (in Debug mode in the office while doing profiling and diagnostics tool)
-	double bounds = 1000.0;
+	int numP = 100000; // ~8[s] for 10e6, ~2[s] for 10e5 (in Debug mode in the office while doing profiling and diagnostics tool)
+	double bounds = 10000.0;
 	double movement = 0.0005;
 	constexpr float rad = 10.f;
 	if (argc > 1) {
