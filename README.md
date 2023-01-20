@@ -1,6 +1,6 @@
 # MCLEAP
 
-Computing the Delaunay triangulation of moving points in the GPU. 
+Computing the Delaunay triangulation of moving points in 2D in the GPU. 
 
 ## Getting Started
 
