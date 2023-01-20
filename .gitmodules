@@ -1,0 +1,12 @@
+[submodule "lib/tinytest"]
+	path = lib/tinytest
+	url = https://github.com/hporro/tinytest
+[submodule "lib/glm"]
+	path = lib/glm
+	url = https://github.com/g-truc/glm
+[submodule "lib/libmorton"]
+	path = lib/libmorton
+	url = https://github.com/Forceflow/libmorton
+[submodule "lib/gcem"]
+	path = lib/gcem
+	url = https://github.com/kthohr/gcem
