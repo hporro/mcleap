@@ -1,8 +1,8 @@
-cmake_minimum_required (VERSION 3.20 FATAL_ERROR)
-project (
+cmake_minimum_required(VERSION 3.20 FATAL_ERROR)
+project(
 	CUDADelaunator
 	DESCRIPTION "GPU based 2D Delaunay Triangulation"
-	LANGUAGES CUDA CXX
+	LANGUAGES CUDA CXX C
 )
 
 # Cuda configuration

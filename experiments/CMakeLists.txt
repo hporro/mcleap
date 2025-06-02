@@ -1,4 +1,7 @@
+add_library(predicates STATIC predicates.c predicates.h)
+
 add_executable(floating_point_predicates_precision floating_point_predicates_precision.cu)
+target_link_libraries(floating_point_predicates_precision PRIVATE ${CUDA_LIBRARIES} predicates)
 target_include_directories(floating_point_predicates_precision PRIVATE ../lib/glm ../lib/gcem/include ../lib/libmorton/include ../lib/)
 
 add_executable(moving_device_mesh moving_device_mesh.cu)
